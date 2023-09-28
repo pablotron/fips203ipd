@@ -21,32 +21,40 @@ static const uint8_t ENCAPS_SEED[32] = {
   0x61, 0x73, 0x64, 0x66, 0x61, 0x73, 0x64, 0x66,
 };
 
-int main(int argc, char *argv[]) {
-  (void) argc;
-  (void) argv;
-
+static void test_fips203_kem512(void) {
   // generate encapsulation and decapsulation keys
   uint8_t ek[800] = { 0 };
   uint8_t dk[1632] = { 0 };
   fips203_kem512_keygen(ek, dk, KEYGEN_SEED);
 
-  // encapsulate
+  // encapsulate, get key and ciphertext
   uint8_t k0[32] = { 0 };
   uint8_t ct[768] = { 0 };
   fips203_kem512_encaps(k0, ct, ek, ENCAPS_SEED);
 
-  // decapsulate
+  // decapsulate key from ciphertext
   uint8_t k1[32] = { 0 };
   fips203_kem512_decaps(k1, ct, dk);
 
-  if (!memcmp(k0, k1, 32)) {
-    printf("keys are equal\n");
-  } else {
-    printf("k0 != k1:\nk0 = ");
+  // compare keys
+  if (memcmp(k0, k1, 32)) {
+    printf("test_fips203_kem512: k0 != k1:\nk0 = ");
     hex_write(stdout, k0, sizeof(k0));
     printf("\nk1 = ");
     hex_write(stdout, k1, sizeof(k1));
     printf("\n");
+    exit(-1);
   }
+
+  printf("test_fips203_kem512: ok\n");
+}
+
+int main(int argc, char *argv[]) {
+  (void) argc;
+  (void) argv;
+
+  // generate encapsulation and decapsulation keys
+  test_fips203_kem512();
+
   return 0;
 }

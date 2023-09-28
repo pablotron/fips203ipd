@@ -380,6 +380,10 @@ static inline void poly_inv_ntt(poly_t * const p) {
       }
     }
   }
+
+  for (size_t i = 0; i < 256; i++) {
+    p->cs[i] = (p->cs[i] * 3308) % Q;
+  }
 }
 
 // add polynomial `a` to polynomial `b` component-wise, and store the
@@ -478,7 +482,7 @@ static void poly_decode(poly_t * const p, const uint8_t b[static 384]) {
 // Decode 1-bit coefficients from 32 bytes and then decompress them
 // (e.g., multiply by 1665).
 static void poly_decode_1bit(poly_t * const p, const uint8_t b[static 32]) {
-  for (size_t i = 0; i < 256; i += 8) {
+  for (size_t i = 0; i < 256; i++) {
     p->cs[i] = 1665 * ((b[i / 8] >> (i % 8)) & 1);
   }
 }
@@ -633,7 +637,7 @@ static inline void pke512_encrypt(uint8_t ct[static FIPS203_PKE512_CT_SIZE], con
   sha3_xof_t xof = { 0 };
   for (size_t i = 0; i < FIPS203_KEM512_K; i++) {
     for (size_t j = 0; j < FIPS203_KEM512_K; j++) {
-      // init xof, then absorb rho (first 32 bytes of rs), i, and j
+      // init xof, then absorb rho, i, and j
       xof_init(&xof, rho, i, j);
 
       // sample polynomial
@@ -643,6 +647,7 @@ static inline void pke512_encrypt(uint8_t ct[static FIPS203_PKE512_CT_SIZE], con
     }
   }
 
+  // init seed data used by shake256 xof PRFs below
   uint8_t prf_seed[33] = { 0 };
   memcpy(prf_seed, enc_rand, 32); // populate prf_src with sigma
 
@@ -742,6 +747,7 @@ static void pke512_decrypt(uint8_t m[static 32], const uint8_t dk[static FIPS203
   poly_t w = v;
   poly_sub(&w, &su); // w -= su
 
+  // encode w coefficients as 1-bit, write to output
   poly_encode_1bit(m, &w);
 }
 

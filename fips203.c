@@ -411,7 +411,7 @@ static inline void poly_mul(poly_t * const restrict c, const poly_t * const rest
   }
 }
 
-// encode 12-bit polynomial coefficients into 384 bytes
+// Encode 12-bit polynomial coefficients into 384 bytes
 static void poly_encode(uint8_t out[static 384], const poly_t * const a) {
   for (size_t i = 0; i < 128; i++) {
     const uint16_t a0 = a->cs[2 * i],
@@ -419,6 +419,47 @@ static void poly_encode(uint8_t out[static 384], const poly_t * const a) {
     out[3 * i] = (uint8_t) a0;
     out[3 * i + 1] = (uint8_t) ((a0 >> 4) | ((a1 & 0xf) << 4));
     out[3 * i + 2] = (uint8_t) (a1 >> 4);
+  }
+}
+
+// Compress coefficients to 10 bits and then encode them as 320 bytes.
+static inline void poly_encode_10bit(uint8_t out[static 320], const poly_t * const p) {
+  for (size_t i = 0; i < 64; i++) {
+    // compress (shift and round)
+    const uint16_t p0 = (p->cs[4 * i] >> 2) + ((p->cs[4 * i] >> 2) & 1),
+                   p1 = (p->cs[4 * i + 1] >> 2) + ((p->cs[4 * i + 1] >> 1) & 1),
+                   p2 = (p->cs[4 * i + 2] >> 2) + ((p->cs[4 * i + 2] >> 1) & 1),
+                   p3 = (p->cs[4 * i + 3] >> 2) + ((p->cs[4 * i + 3] >> 1) & 1);
+
+    out[5 * i + 0] = (p0) & 0xff;
+    out[5 * i + 1] = ((p0 >> 8) & 0x03) | ((p1 & 0x3f) << 2);
+    out[5 * i + 2] = ((p1 >> 6) & 0xf) | ((p2 & 0xf) << 4);
+    out[5 * i + 3] = ((p2 >> 4) & 0x3f) | ((p3 & 0x3) << 6);
+    out[5 * i + 4] = (p3 >> 2) & 0xff;
+  }
+}
+
+// Compress coefficients to 4 bits and then encode them as 128 bytes.
+static inline void poly_encode_4bit(uint8_t out[static 128], const poly_t * const p) {
+  for (size_t i = 0; i < 128; i++) {
+    // compress (shift and round)
+    const uint16_t p0 = (p->cs[2 * i] >> 8) + ((p->cs[2 * i] >> 7) & 1),
+                   p1 = (p->cs[2 * i + 1] >> 8) + ((p->cs[2 * i + 1] >> 7) & 1);
+    out[i] = p0 | (p1 << 4);
+  }
+}
+
+// Compress coefficients to 1 bit and then encode them as 32 bytes.
+static inline void poly_encode_1bit(uint8_t out[static 32], const poly_t * const p) {
+  for (size_t i = 0; i < 32; i++) {
+    out[i] = ((p->cs[8 * i + 0] > 1664)) |
+             ((p->cs[8 * i + 1] > 1664) << 1) |
+             ((p->cs[8 * i + 2] > 1664) << 2) |
+             ((p->cs[8 * i + 3] > 1664) << 3) |
+             ((p->cs[8 * i + 4] > 1664) << 4) |
+             ((p->cs[8 * i + 5] > 1664) << 5) |
+             ((p->cs[8 * i + 6] > 1664) << 6) |
+             ((p->cs[8 * i + 7] > 1664) << 7);
   }
 }
 
@@ -467,47 +508,6 @@ static inline void poly_decode_4bit(poly_t * const p, const uint8_t b[static 128
 
     p->cs[2 * i + 0] = 208 * ((b0 & 0x0f) << 8);
     p->cs[2 * i + 1] = 208 * ((b0 & 0xf0) << 4);
-  }
-}
-
-// Compress coefficients to 10 bits and then encode them as 320 bytes.
-static inline void poly_encode_10bit(uint8_t out[static 320], const poly_t * const p) {
-  for (size_t i = 0; i < 64; i++) {
-    // compress (shift and round)
-    const uint16_t p0 = (p->cs[4 * i] >> 2) + ((p->cs[4 * i] >> 2) & 1),
-                   p1 = (p->cs[4 * i + 1] >> 2) + ((p->cs[4 * i + 1] >> 1) & 1),
-                   p2 = (p->cs[4 * i + 2] >> 2) + ((p->cs[4 * i + 2] >> 1) & 1),
-                   p3 = (p->cs[4 * i + 3] >> 2) + ((p->cs[4 * i + 3] >> 1) & 1);
-
-    out[5 * i + 0] = (p0) & 0xff;
-    out[5 * i + 1] = ((p0 >> 8) & 0x03) | ((p1 & 0x3f) << 2);
-    out[5 * i + 2] = ((p1 >> 6) & 0xf) | ((p2 & 0xf) << 4);
-    out[5 * i + 3] = ((p2 >> 4) & 0x3f) | ((p3 & 0x3) << 6);
-    out[5 * i + 4] = (p3 >> 2) & 0xff;
-  }
-}
-
-// Compress coefficients to 4 bits and then encode them as 128 bytes.
-static inline void poly_encode_4bit(uint8_t out[static 128], const poly_t * const p) {
-  for (size_t i = 0; i < 128; i++) {
-    // compress (shift and round)
-    const uint16_t p0 = (p->cs[2 * i] >> 8) + ((p->cs[2 * i] >> 7) & 1),
-                   p1 = (p->cs[2 * i + 1] >> 8) + ((p->cs[2 * i + 1] >> 7) & 1);
-    out[i] = p0 | (p1 << 4);
-  }
-}
-
-// Compress coefficients to 1 bit and then encode them as 32 bytes.
-static inline void poly_encode_1bit(uint8_t out[static 32], const poly_t * const p) {
-  for (size_t i = 0; i < 32; i++) {
-    out[i] = (p->cs[8 * i] > 1664) |
-             ((p->cs[8 * i + 1] > 1664) << 1) |
-             ((p->cs[8 * i + 2] > 1664) << 2) |
-             ((p->cs[8 * i + 3] > 1664) << 3) |
-             ((p->cs[8 * i + 4] > 1664) << 4) |
-             ((p->cs[8 * i + 5] > 1664) << 5) |
-             ((p->cs[8 * i + 6] > 1664) << 6) |
-             ((p->cs[8 * i + 7] > 1664) << 7);
   }
 }
 

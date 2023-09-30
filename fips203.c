@@ -339,19 +339,22 @@ static inline void poly_sample_ntt(poly_t * const a, const uint8_t rho[static 32
 }
 
 /**
- * Initialize shake256 XOF as a PRF with given 32-byte value `s` and 1
- * byte value `b`, then read `len` bytes of data from the PRF into the
- * buffer pointed to by `out`.
+ * Initialize SHAKE256 XOF as a PRF by absorbing 32-byte `seed` and byte
+ * `b`, then read `len` bytes of data from the PRF into the buffer
+ * pointed to by `out`.
  *
- * @param[in] s 32-byte buffer.
- * @param[in] b 1 byte value.
+ * @param[in] seed 32 bytes.
+ * @param[in] b 1 byte.
  * @param[out] out Output buffer of length `len`.
  * @param[in] len Output buffer length.
  */
-static inline void prf(const uint8_t s[static 32], const uint8_t b, uint8_t * const out, const size_t len) {
+static inline void prf(const uint8_t seed[static 32], const uint8_t b, uint8_t * const out, const size_t len) {
+  // populate `buf` with `seed` and byte `b`
   uint8_t buf[33] = { 0 };
-  memcpy(buf, s, 32); // populate buf with seed
+  memcpy(buf, seed, 32);
   buf[32] = b;
+
+  // absorb `buf` into SHAKE256 XOF, write `len` bytes to `out`
   shake256_xof_once(buf, sizeof(buf), out, len);
 }
 
@@ -455,8 +458,8 @@ static void poly_encode(uint8_t out[static 384], const poly_t * const a) {
     const uint16_t a0 = a->cs[2 * i],
                    a1 = a->cs[2 * i + 1];
     out[3 * i] = (uint8_t) a0;
-    out[3 * i + 1] = (uint8_t) ((a0 >> 4) | ((a1 & 0xf) << 4));
-    out[3 * i + 2] = (uint8_t) (a1 >> 4);
+    out[3 * i + 1] = (uint8_t) (((a0 & 0xf00) >> 4) | ((a1 & 0x0f) << 4));
+    out[3 * i + 2] = (uint8_t) ((a1 & 0xff0) >> 4);
   }
 }
 
@@ -829,7 +832,7 @@ static void poly_write(FILE *fh, const poly_t * const p) {
   }
 }
 
-static void test_poly_ntt(void) {
+static void test_poly_ntt_roundtrip(void) {
   static const struct {
     const char *name;
     const poly_t poly;
@@ -862,6 +865,6 @@ static void test_poly_ntt(void) {
 }
 
 int main(void) {
-  test_poly_ntt();
+  test_poly_ntt_roundtrip();
 }
 #endif // TEST_FIPS203

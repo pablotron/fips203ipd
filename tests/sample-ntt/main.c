@@ -1,6 +1,9 @@
 //
-// sample-ntt.c: calculate expected coefficients for poly_sample_ntt()
+// sample-ntt.c: Calculate expected coefficients for poly_sample_ntt()
 // for all zero seed and coordinates given as command line parameters.
+//
+// Additionally, if you define PRINT_SQUEEZED_BYTES you can inspect the
+// raw byte stream from the XOF.
 //
 // Example:
 //
@@ -9,9 +12,16 @@
 //   0x0f9, 0x0b0, 0xbc9, 0x054, 0x4a0, ... (omitted)
 //
 
+// print squeezed bytes to stdout?
+// (used for manual inspection)
+#define PRINT_SQUEEZED_BYTES 1
+
 #include <stdio.h> // printf(), fprintf(), fputs()
 #include <stdlib.h> // atoi()
 #include "sha3.h" // shake128_xof_{init,absorb,squeeze}()
+#ifdef PRINT_SQUEEZED_BYTES
+#include "hex.h" // hex_write()
+#endif /* PRINT_SQUEEZED_BYTES */
 
 #define Q 3329 // modulus
 
@@ -31,8 +41,13 @@ int main(int argc, char *argv[]) {
                 y = atoi(argv[2]);
   const uint8_t buf[2] = { x, y };
 
+#ifdef PRINT_SQUEEZED_BYTES
+  uint8_t squeezed[4096] = { 0 }; // buffer to store squeezed bytes
+  size_t squeezed_ofs = 0; // offset in squeezed byte buffer
+#endif /* PRINT_SQUEEZED_BYTES */
+
   // init xof
-  sha3_xof_t xof;
+  sha3_xof_t xof = { 0 };
   shake128_xof_init(&xof);
 
   // absorb seed and coordinates
@@ -42,12 +57,21 @@ int main(int argc, char *argv[]) {
   // read coefficients from xof using rejection sampling
   uint16_t cs[256] = { 0 };
   for (size_t i = 0; i < 256;) {
-    // read 3 bytes from xof
+    // squeeze 3 bytes from xof
     uint8_t ds[3] = { 0 };
     shake128_xof_squeeze(&xof, ds, 3);
 
+#ifdef PRINT_SQUEEZED_BYTES
+    if (squeezed_ofs < sizeof(squeezed) - 3) {
+      // append bytes to squeezed buffer
+      squeezed[squeezed_ofs++] = ds[0];
+      squeezed[squeezed_ofs++] = ds[1];
+      squeezed[squeezed_ofs++] = ds[2];
+    }
+#endif /* PRINT_SQUEEZED_BYTES */
+
     // split 3 bytes into two 12-bit samples
-    const uint16_t d1 = ((uint16_t) ds[0]) | (((uint16_t) (ds[1] & 0xf)) << 4),
+    const uint16_t d1 = ((uint16_t) ds[0]) | (((uint16_t) (ds[1] & 0xf)) << 8),
                    d2 = ((uint16_t) ds[1] >> 4) | (((uint16_t) ds[2]) << 4);
 
     // sample d1
@@ -67,6 +91,13 @@ int main(int argc, char *argv[]) {
     printf("%s0x%03x", i ? ", " : "", cs[i]);
   }
   fputs("\n", stdout);
+
+#ifdef PRINT_SQUEEZED_BYTES
+    // print squeezed bytes to stdout (for manual inspection)
+    printf("// squeezed bytes, seed = { 0 }, x = %d, y = %d\n", x, y);
+    hex_write(stdout, squeezed, squeezed_ofs);
+    fputs("\n", stdout);
+#endif /* PRINT_SQUEEZED_BYTES */
 
   // return success
   return 0;

@@ -338,24 +338,50 @@ static inline void poly_sample_ntt(poly_t * const a, const uint8_t rho[static 32
   }
 }
 
-// sample polynomial coefficients from centered binomial distribution
-// using factor eta an
-static inline void poly_sample_cbd(poly_t * const p, const uint8_t eta, const uint8_t * const prf) {
-  for (size_t i = 0; i < 256; i++) {
-    uint16_t x = 0;
-    for (size_t j = 0; j < eta; j++) {
-      const size_t ofs = 2 * i * eta + j;
-      x += (prf[ofs / 8] >> (ofs % 8)) & 0x01;
-    }
-
-    uint16_t y = 0;
-    for (size_t j = 0; j < eta; j++) {
-      const size_t ofs = 2 * i * eta + eta + j;
-      x += (prf[ofs / 8] >> (ofs % 8)) & 0x01;
-    }
-    p->cs[i] = (x + (Q - y)) % Q; // (x - y) % Q
-  }
+/**
+ * Initialize shake256 XOF as a PRF with given 32-byte value `s` and 1
+ * byte value `b`, then read `len` bytes of data from the PRF into the
+ * buffer pointed to by `out`.
+ *
+ * @param[in] s 32-byte buffer.
+ * @param[in] b 1 byte value.
+ * @param[out] out Output buffer of length `len`.
+ * @param[in] len Output buffer length.
+ */
+static inline void prf(const uint8_t s[static 32], const uint8_t b, uint8_t * const out, const size_t len) {
+  uint8_t buf[33] = { 0 };
+  memcpy(buf, s, 32); // populate buf with seed
+  buf[32] = b;
+  shake256_xof_once(buf, sizeof(buf), out, len);
 }
+
+// Function to sample polynomial coefficients from centered binomial
+// distribution (CBD) using factor eta and bytes from prf data `prf`.
+#define DEF_POLY_SAMPLE_CBD(ETA) \
+  static inline void poly_sample_cbd_eta ## ETA (poly_t * const p, const uint8_t seed[32], const uint8_t b) { \
+    /* read 64 * eta bytes of data from prf */ \
+    uint8_t buf[64 * ETA] = { 0 }; \
+    prf(seed, b, buf, sizeof(buf)); \
+    \
+    for (size_t i = 0; i < 256; i++) { \
+      uint16_t x = 0; \
+      for (size_t j = 0; j < ETA; j++) { \
+        const size_t ofs = 2 * i * ETA + j; \
+        x += (buf[ofs / 8] >> (ofs % 8)) & 0x01; \
+      } \
+      \
+      uint16_t y = 0; \
+      for (size_t j = 0; j < ETA; j++) { \
+        const size_t ofs = 2 * i * ETA + ETA + j; \
+        y += (buf[ofs / 8] >> (ofs % 8)) & 0x01; \
+      } \
+      \
+      p->cs[i] = (x + (Q - y)) % Q; /* (x - y) % Q */ \
+    } \
+  }
+
+DEF_POLY_SAMPLE_CBD(3) // PKE512_ETA1 = 3
+DEF_POLY_SAMPLE_CBD(2) // PKE512_ETA2 = 2
 
 // Compute number theoretic transform (NTT) of given polynomial p E R_q.
 static inline void poly_ntt(poly_t * const p) {
@@ -581,23 +607,6 @@ static inline void ct_copy(uint8_t c[static 32], const bool sel, const uint8_t a
 }
 
 /**
- * Initialize shake256 XOF as a PRF with given 32-byte value `s` and 1
- * byte value `b`, then read `len` bytes of data from the PRF into the
- * buffer pointed to by `out`.
- *
- * @param[in] s 32-byte buffer.
- * @param[in] b 1 byte value.
- * @param[out] out Output buffer of length `len`.
- * @param[in] len Output buffer length.
- */
-static inline void prf(const uint8_t s[static 32], const uint8_t b, uint8_t * const out, const size_t len) {
-  uint8_t buf[33] = { 0 };
-  memcpy(buf, s, 32); // populate buf with seed
-  buf[32] = b;
-  shake256_xof_once(buf, sizeof(buf), out, len);
-}
-
-/**
  * Generate PKE512 encryption and decryption key from given 32-byte
  * seed.
  *
@@ -624,12 +633,8 @@ static inline void pke512_keygen(uint8_t ek[static PKE512_EK_SIZE], uint8_t dk[s
   // (note: sampling is done in R_q, not in NTT domain)
   poly_t se[2 * PKE512_K] = { 0 }; // s = se[0, k], e = se[k, 2k-1]
   for (size_t i = 0; i < 2 * PKE512_K; i++) {
-    // read 64 * eta1 bytes of data from prf
-    uint8_t buf[64 * PKE512_ETA1] = { 0 };
-    prf(sigma, i, buf, sizeof(buf));
-
-    // sample polynomial coefficients from CBD
-    poly_sample_cbd(se + i, PKE512_ETA1, buf);
+    // sample polynomial coefficients from CBD(ETA1)
+    poly_sample_cbd_eta3(se + i, sigma, i);
 
     // apply NTT to polynomial coefficients (R_q -> T_q)
     poly_ntt(se + i);
@@ -676,12 +681,8 @@ static inline void pke512_encrypt(uint8_t ct[static PKE512_CT_SIZE], const uint8
   // populate r vector (in NTT)
   poly_t r[PKE512_K] = { 0 };
   for (size_t i = 0; i < PKE512_K; i++) {
-    // read 64 * eta1 bytes of data from prf
-    uint8_t buf[64 * PKE512_ETA1] = { 0 };
-    prf(enc_rand, i, buf, sizeof(buf));
-
-    // sample polynomial coefficients from CBD
-    poly_sample_cbd(r + i, PKE512_ETA1, buf);
+    // sample polynomial coefficients from CBD(ETA1)
+    poly_sample_cbd_eta3(r + i, enc_rand, i);
 
     // apply NTT to polynomial coefficients (R_q -> T_q)
     poly_ntt(r + i);
@@ -690,19 +691,13 @@ static inline void pke512_encrypt(uint8_t ct[static PKE512_CT_SIZE], const uint8
   // populate e1 vector (not in NTT)
   poly_t e1[PKE512_K] = { 0 };
   for (size_t i = 0; i < PKE512_K; i++) {
-    // read 64 * eta2 bytes of data from prf
-    uint8_t buf[64 * PKE512_ETA2] = { 0 };
-    prf(enc_rand, PKE512_K + i, buf, sizeof(buf));
-
-    // sample polynomial coefficients from CBD
-    poly_sample_cbd(e1 + i, PKE512_ETA2, buf);
+    // sample polynomial coefficients from CBD(ETA2)
+    poly_sample_cbd_eta2(e1 + i, enc_rand, PKE512_K + i);
   }
 
   // populate e2 polynomial (not in NTT)
   poly_t e2 = { 0 };
-  uint8_t buf[64 * PKE512_ETA2] = { 0 };
-  prf(enc_rand, 2 * PKE512_K, buf, sizeof(buf));
-  poly_sample_cbd(&e2, PKE512_ETA2, buf);
+  poly_sample_cbd_eta2(&e2, enc_rand, 2 * PKE512_K);
 
   // u = (A*r)
   poly_t u[PKE512_K] = { 0 };

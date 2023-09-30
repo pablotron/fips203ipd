@@ -5,18 +5,17 @@
 #include "sha3.h" // sha3
 #include "fips203.h"
 
-#define FIPS203_KEM512_K 2
-#define FIPS203_KEM512_ETA1 3
-#define FIPS203_KEM512_ETA2 2
-#define FIPS203_PKE512_DU 10
-#define FIPS203_PKE512_DV 4
-#define FIPS203_PKE512_EK_SIZE (384 * FIPS203_KEM512_K + 32)
-#define FIPS203_PKE512_DK_SIZE (384 * FIPS203_KEM512_K)
-#define FIPS203_PKE512_CT_SIZE (32 * (FIPS203_PKE512_DU * FIPS203_KEM512_K + FIPS203_PKE512_DV))
-#define FIPS203_KEM512_EK_SIZE (384 * FIPS203_KEM512_K + 32)
-#define FIPS203_KEM512_DK_SIZE (768 * FIPS203_KEM512_K + 96)
-
 #define Q 3329
+
+#define PKE512_K 2
+#define PKE512_ETA1 3
+#define PKE512_ETA2 2
+#define PKE512_DU 10
+#define PKE512_DV 4
+#define PKE512_EK_SIZE (384 * PKE512_K + 32)
+#define PKE512_DK_SIZE (384 * PKE512_K)
+#define PKE512_CT_SIZE (32 * (PKE512_DU * PKE512_K + PKE512_DV))
+
 #define FIPS203_KEM768 3
 #define FIPS203_KEM768_ETA1 2
 #define FIPS203_KEM768_ETA2 2
@@ -28,62 +27,6 @@
 #define FIPS203_KEM1024_ETA2 2
 #define FIPS203_KEM1024_DU 11
 #define FIPS203_KEM1024_DV 5
-
-typedef struct {
-  uint8_t data[FIPS203_KEM512_EK_SIZE];
-} fips203_kem512_ek_t;
-
-typedef struct {
-  uint8_t data[FIPS203_KEM512_DK_SIZE];
-} fips203_kem512_dk_t;
-
-// polynomial coefficients
-typedef struct {
-  uint16_t cs[256]; // coefficients
-} poly_t;
-
-// initialize polynomial by sampling from given xof.
-static inline void poly_sample_ntt(poly_t * const a, sha3_xof_t * const xof) {
-  uint8_t ds[3] = { 0 };
-
-  for (size_t i = 0; i < 256;) {
-    // read 3 bytes from xof
-    shake128_xof_squeeze(xof, ds, 3);
-
-    // split 3 bytes into two 12-bit samples
-    const uint16_t d1 = ((uint16_t) ds[0]) + (((uint16_t) (ds[1] & 0xF)) << 4),
-                   d2 = ((uint16_t) ds[1] >> 4) + (((uint16_t) ds[2]) << 4);
-
-    // sample d1
-    if (d1 < Q) {
-      a->cs[i++] = d1;
-    }
-
-    // sample d2
-    if (d2 < Q && i < 256) {
-      a->cs[i++] = d2;
-    }
-  }
-}
-
-// sample polynomial coefficients from centered binomial distribution
-// using factor eta an
-static inline void poly_sample_cbd(poly_t * const p, const uint8_t eta, const uint8_t * const prf) {
-  for (size_t i = 0; i < 256; i++) {
-    uint16_t x = 0;
-    for (size_t j = 0; j < eta; j++) {
-      const size_t ofs = 2 * i * eta + j;
-      x += (prf[ofs / 8] >> (ofs % 8)) & 0x01;
-    }
-
-    uint16_t y = 0;
-    for (size_t j = 0; j < eta; j++) {
-      const size_t ofs = 2 * i * eta + eta + j;
-      x += (prf[ofs / 8] >> (ofs % 8)) & 0x01;
-    }
-    p->cs[i] = (x + (Q - y)) % Q; // (x - y) % Q
-  }
-}
 
 // number-theoretic transform (NTT) lookup table
 static const uint16_t NTT_LUT[] = {
@@ -349,12 +292,60 @@ static const uint16_t MUL_LUT[] = {
   2154, // n = 127, 2*bitrev(127)+1 = 255, (17**255)%3329) = 2154
 };
 
+// Polynomial with 256 coefficients.
+typedef struct {
+  uint16_t cs[256]; // coefficients
+} poly_t;
+
+// initialize polynomial by sampling from given xof.
+static inline void poly_sample_ntt(poly_t * const a, sha3_xof_t * const xof) {
+  uint8_t ds[3] = { 0 };
+
+  for (size_t i = 0; i < 256;) {
+    // read 3 bytes from xof
+    shake128_xof_squeeze(xof, ds, 3);
+
+    // split 3 bytes into two 12-bit samples
+    const uint16_t d1 = ((uint16_t) ds[0]) + (((uint16_t) (ds[1] & 0xF)) << 4),
+                   d2 = ((uint16_t) ds[1] >> 4) + (((uint16_t) ds[2]) << 4);
+
+    // sample d1
+    if (d1 < Q) {
+      a->cs[i++] = d1;
+    }
+
+    // sample d2
+    if (d2 < Q && i < 256) {
+      a->cs[i++] = d2;
+    }
+  }
+}
+
+// sample polynomial coefficients from centered binomial distribution
+// using factor eta an
+static inline void poly_sample_cbd(poly_t * const p, const uint8_t eta, const uint8_t * const prf) {
+  for (size_t i = 0; i < 256; i++) {
+    uint16_t x = 0;
+    for (size_t j = 0; j < eta; j++) {
+      const size_t ofs = 2 * i * eta + j;
+      x += (prf[ofs / 8] >> (ofs % 8)) & 0x01;
+    }
+
+    uint16_t y = 0;
+    for (size_t j = 0; j < eta; j++) {
+      const size_t ofs = 2 * i * eta + eta + j;
+      x += (prf[ofs / 8] >> (ofs % 8)) & 0x01;
+    }
+    p->cs[i] = (x + (Q - y)) % Q; // (x - y) % Q
+  }
+}
+
 // Compute number theoretic transform (NTT) of given polynomial p E R_q.
 static inline void poly_ntt(poly_t * const p) {
   uint8_t k = 1;
   for (uint16_t len = 128; len >= 2; len /= 2) {
     for (uint16_t start = 0; start < 256; start += 2 * len) {
-      const uint16_t zeta = NTT_LUT[k++]; 
+      const uint16_t zeta = NTT_LUT[k++];
 
       for (uint16_t j = start; j < start + len; j++) {
         const uint16_t t = (zeta * p->cs[j + len]) % Q;
@@ -371,7 +362,7 @@ static inline void poly_inv_ntt(poly_t * const p) {
   uint8_t k = 127;
   for (uint16_t len = 2; len <= 128; len *= 2) {
     for (uint16_t start = 0; start < 256; start += 2 * len) {
-      const uint16_t zeta = NTT_LUT[k--]; 
+      const uint16_t zeta = NTT_LUT[k--];
 
       for (uint16_t j = start; j < start + len; j++) {
         const uint16_t t = p->cs[j];
@@ -406,8 +397,8 @@ static inline void poly_sub(poly_t * const restrict a, const poly_t * const rest
 // `c`.  `a` and `b` are assumed to be in NTT.
 static inline void poly_mul(poly_t * const restrict c, const poly_t * const restrict a, const poly_t * const restrict b) {
   for (size_t i = 0; i < 128; i++) {
-    const uint32_t a0 = a->cs[2 * i], 
-                   a1 = a->cs[2 * i + 1], 
+    const uint32_t a0 = a->cs[2 * i],
+                   a1 = a->cs[2 * i + 1],
                    b0 = b->cs[2 * i],
                    b1 = b->cs[2 * i + 1];
     c->cs[2 * i] = (a0 * b0 + a1 * b1 * MUL_LUT[i]) % Q;
@@ -456,14 +447,14 @@ static inline void poly_encode_4bit(uint8_t out[static 128], const poly_t * cons
 // Compress coefficients to 1 bit and then encode them as 32 bytes.
 static inline void poly_encode_1bit(uint8_t out[static 32], const poly_t * const p) {
   for (size_t i = 0; i < 32; i++) {
-    out[i] = ((p->cs[8 * i + 0] > 1664)) |
-             ((p->cs[8 * i + 1] > 1664) << 1) |
-             ((p->cs[8 * i + 2] > 1664) << 2) |
-             ((p->cs[8 * i + 3] > 1664) << 3) |
-             ((p->cs[8 * i + 4] > 1664) << 4) |
-             ((p->cs[8 * i + 5] > 1664) << 5) |
-             ((p->cs[8 * i + 6] > 1664) << 6) |
-             ((p->cs[8 * i + 7] > 1664) << 7);
+    out[i] = (((p->cs[8 * i + 0] > 1664)) & 1) |
+             (((p->cs[8 * i + 1] > 1664) & 1) << 1) |
+             (((p->cs[8 * i + 2] > 1664) & 1) << 2) |
+             (((p->cs[8 * i + 3] > 1664) & 1) << 3) |
+             (((p->cs[8 * i + 4] > 1664) & 1) << 4) |
+             (((p->cs[8 * i + 5] > 1664) & 1) << 5) |
+             (((p->cs[8 * i + 6] > 1664) & 1) << 6) |
+             (((p->cs[8 * i + 7] > 1664) & 1) << 7);
   }
 }
 
@@ -552,9 +543,9 @@ static inline void poly_decode_4bit(poly_t * const p, const uint8_t b[static 128
 // define mat3 and vec2 functions
 DEFINE_MAT_VEC_OPS(2)
 
-// initialize SHAKE128 XOF by absorbing 32 byte seed `r` followed by
+// Initialize SHAKE128 XOF by absorbing 32 byte seed `r` followed by
 // bytes `i` and `j`.
-static void xof_init(sha3_xof_t * const xof, const uint8_t r[static 32], const uint8_t i, const uint8_t j) {
+static inline void xof_init(sha3_xof_t * const xof, const uint8_t r[static 32], const uint8_t i, const uint8_t j) {
   // init shake128 xof
   shake128_xof_init(xof);
 
@@ -566,133 +557,164 @@ static void xof_init(sha3_xof_t * const xof, const uint8_t r[static 32], const u
   shake128_xof_absorb(xof, ij, 2);
 }
 
-static void pke512_keygen(uint8_t ek[static FIPS203_PKE512_EK_SIZE], uint8_t dk[static FIPS203_PKE512_DK_SIZE], const uint8_t seed[static 32]) {
+// Constant-time difference.  Returns true if `a` and `b` differ and
+// false they are the identical.
+static inline bool ct_diff(const uint8_t * const restrict a, const uint8_t * const restrict b, const size_t len) {
+  uint8_t r = 0;
+  for (size_t i = 0; i < len; i++) {
+    r |= (a[i] ^ b[i]);
+  }
+
+  return r == 0;
+}
+
+// Constant-time copy: copy from `a` if `sel` is `0` and `b` if `sel` is
+// `1`.
+static inline void ct_copy(uint8_t c[static 32], const bool sel, const uint8_t a[static 32], const uint8_t b[static 32]) {
+  const uint8_t mask = sel ? 0xff : 0x00;
+  for (size_t i = 0; i < 32; i++) {
+    c[i] = (a[i] & mask) ^ (b[i] & ~mask);
+  }
+}
+
+/**
+ * Initialize shake256 XOF as a PRF with given 32-byte value `s` and 1
+ * byte value `b`, then read `len` bytes of data from the PRF into the
+ * buffer pointed to by `out`.
+ *
+ * @param[in] s 32-byte buffer.
+ * @param[in] b 1 byte value.
+ * @param[out] out Output buffer of length `len`.
+ * @param[in] len Output buffer length.
+ */
+static inline void prf(const uint8_t s[static 32], const uint8_t b, uint8_t * const out, const size_t len) {
+  uint8_t buf[33] = { 0 };
+  memcpy(buf, s, 32); // populate buf with seed
+  buf[32] = b;
+  shake256_xof_once(buf, sizeof(buf), out, len);
+}
+
+/**
+ * Generate PKE512 encryption and decryption key from given 32-byte
+ * seed.
+ *
+ * @param[out] ek PKE512 encryption key.
+ * @param[out] dk PKE512 decryption key.
+ * @param[in] seed Input 32-byte seed.
+ */
+static inline void pke512_keygen(uint8_t ek[static PKE512_EK_SIZE], uint8_t dk[static PKE512_DK_SIZE], const uint8_t seed[static 32]) {
   // get sha3-512 hash of seed, get rho and sigma (each 32 bytes)
   uint8_t rs[64] = { 0 }; // rho = rs[0,31], sigma = rs[32,63]
   sha3_512(seed, 32, rs); // rho, sigma = sha3-512(seed)
+  const uint8_t * const sigma = rs + 32; // sigma
 
   // populate A hat
-  poly_t a[FIPS203_KEM512_K * FIPS203_KEM512_K] = { 0 };
-  sha3_xof_t xof = { 0 };
-  for (size_t i = 0; i < FIPS203_KEM512_K; i++) {
-    for (size_t j = 0; j < FIPS203_KEM512_K; j++) {
+  poly_t a[PKE512_K * PKE512_K] = { 0 };
+  for (size_t i = 0; i < PKE512_K; i++) {
+    for (size_t j = 0; j < PKE512_K; j++) {
       // init xof, then absorb rho (first 32 bytes of rs), i, and j
+      sha3_xof_t xof = { 0 };
       xof_init(&xof, rs, i, j);
 
       // sample polynomial
-      poly_sample_ntt(a + (FIPS203_KEM512_K * i + j), &xof);
+      poly_sample_ntt(a + (PKE512_K * i + j), &xof);
     }
   }
 
   // sample s and e coefficients from CBD
   // (note: sampling is done in R_q, not in NTT domain)
-  poly_t se[2 * FIPS203_KEM512_K] = { 0 }; // s = se[0, k], e = se[k, 2k-1]
-  uint8_t prf_seed[33] = { 0 };
-  memcpy(prf_seed, rs + 32, 32); // populate prf_src with sigma
-  for (size_t i = 0; i < 2 * FIPS203_KEM512_K; i++) {
-    uint8_t prf_data[64 * FIPS203_KEM512_ETA1] = { 0 };
-
-    // seed shake256 xof as prf, read 64 * eta1 bytes of data from xof
-    prf_seed[32] = i;
-    shake256_xof_once(prf_seed, 33, prf_data, sizeof(prf_data));
+  poly_t se[2 * PKE512_K] = { 0 }; // s = se[0, k], e = se[k, 2k-1]
+  for (size_t i = 0; i < 2 * PKE512_K; i++) {
+    // read 64 * eta1 bytes of data from prf
+    uint8_t buf[64 * PKE512_ETA1] = { 0 };
+    prf(sigma, i, buf, sizeof(buf));
 
     // sample polynomial coefficients from CBD
-    poly_sample_cbd(se + i, FIPS203_KEM512_ETA1, prf_data);
+    poly_sample_cbd(se + i, PKE512_ETA1, buf);
 
     // apply NTT to polynomial coefficients (R_q -> T_q)
     poly_ntt(se + i);
   }
 
   // t = As + e (NTT)
-  poly_t t[FIPS203_KEM512_K] = { 0 }, *s = se, *e = se + FIPS203_KEM512_K;
+  poly_t t[PKE512_K] = { 0 }, *s = se, *e = se + PKE512_K;
   mat2_mul(t, a, s); // t = As
   vec2_add(t, e); // t += e
 
   // encode t (NTT)
-  for (size_t i = 0; i < FIPS203_KEM512_K; i++) {
+  for (size_t i = 0; i < PKE512_K; i++) {
     poly_encode(ek + (386 * i), t + i);
   }
 
   // ek <- t || rho
-  memcpy(ek + (FIPS203_KEM512_K * 384), rs, 32);
-  
+  memcpy(ek + (PKE512_K * 384), rs, 32);
+
   // dk <- s (NTT)
-  for (size_t i = 0; i < FIPS203_KEM512_K; i++) {
+  for (size_t i = 0; i < PKE512_K; i++) {
     poly_encode(dk + (386 * i), se + i);
   }
 }
 
-static inline void pke512_encrypt(uint8_t ct[static FIPS203_PKE512_CT_SIZE], const uint8_t ek[static FIPS203_PKE512_EK_SIZE], const uint8_t m[static 32], const uint8_t enc_rand[static 32]) {
+static inline void pke512_encrypt(uint8_t ct[static PKE512_CT_SIZE], const uint8_t ek[static PKE512_EK_SIZE], const uint8_t m[static 32], const uint8_t enc_rand[static 32]) {
   // decode t from ek
-  poly_t t[FIPS203_KEM512_K] = { 0 };
-  for (size_t i = 0; i < FIPS203_KEM512_K; i++) {
+  poly_t t[PKE512_K] = { 0 };
+  for (size_t i = 0; i < PKE512_K; i++) {
     poly_decode(t + i, ek + (384 * i));
   }
 
   // decode rho from ek
-  const uint8_t * const rho = ek + 384 * FIPS203_KEM512_K;
+  const uint8_t * const rho = ek + 384 * PKE512_K;
 
   // populate A hat (transposed)
-  poly_t a[FIPS203_KEM512_K * FIPS203_KEM512_K] = { 0 };
-  sha3_xof_t xof = { 0 };
-  for (size_t i = 0; i < FIPS203_KEM512_K; i++) {
-    for (size_t j = 0; j < FIPS203_KEM512_K; j++) {
+  poly_t a[PKE512_K * PKE512_K] = { 0 };
+  for (size_t i = 0; i < PKE512_K; i++) {
+    for (size_t j = 0; j < PKE512_K; j++) {
       // init xof, then absorb rho, i, and j
-      xof_init(&xof, rho, i, j);
+      sha3_xof_t xof = { 0 };
+      xof_init(&xof, rho, j, i); // transposed
 
       // sample polynomial
-      // (note: coefficients are reversed here to sample A hat
-      // transposed for the multiply below)
-      poly_sample_ntt(a + (FIPS203_KEM512_K * i + j), &xof);
+      poly_sample_ntt(a + (PKE512_K * i + j), &xof);
     }
   }
 
-  // init seed data used by shake256 xof PRFs below
-  uint8_t prf_seed[33] = { 0 };
-  memcpy(prf_seed, enc_rand, 32); // populate prf_src with sigma
-
   // populate r vector (in NTT)
-  poly_t r[FIPS203_KEM512_K] = { 0 };
-  for (size_t i = 0; i < FIPS203_KEM512_K; i++) {
-    prf_seed[32] = i; // set tail of prf seed
-
-    // seed shake256 xof as prf, read 64 * eta1 bytes of data from xof
-    uint8_t prf_data[64 * FIPS203_KEM512_ETA1] = { 0 };
-    shake256_xof_once(prf_seed, 33, prf_data, sizeof(prf_data));
+  poly_t r[PKE512_K] = { 0 };
+  for (size_t i = 0; i < PKE512_K; i++) {
+    // read 64 * eta1 bytes of data from prf
+    uint8_t buf[64 * PKE512_ETA1] = { 0 };
+    prf(enc_rand, i, buf, sizeof(buf));
 
     // sample polynomial coefficients from CBD
-    poly_sample_cbd(r + i, FIPS203_KEM512_ETA1, prf_data);
+    poly_sample_cbd(r + i, PKE512_ETA1, buf);
 
     // apply NTT to polynomial coefficients (R_q -> T_q)
     poly_ntt(r + i);
   }
 
   // populate e1 vector (not in NTT)
-  poly_t e1[FIPS203_KEM512_K] = { 0 };
-  for (size_t i = 0; i < FIPS203_KEM512_K; i++) {
-    prf_seed[32] = FIPS203_KEM512_K + i; // set tail of prf seed
-
-    // seed shake256 xof as prf, read 64 * eta2 bytes of data from xof
-    uint8_t prf_data[64 * FIPS203_KEM512_ETA2] = { 0 };
-    shake256_xof_once(prf_seed, 33, prf_data, sizeof(prf_data));
+  poly_t e1[PKE512_K] = { 0 };
+  for (size_t i = 0; i < PKE512_K; i++) {
+    // read 64 * eta2 bytes of data from prf
+    uint8_t buf[64 * PKE512_ETA2] = { 0 };
+    prf(enc_rand, PKE512_K + i, buf, sizeof(buf));
 
     // sample polynomial coefficients from CBD
-    poly_sample_cbd(e1 + i, FIPS203_KEM512_ETA2, prf_data);
+    poly_sample_cbd(e1 + i, PKE512_ETA2, buf);
   }
 
   // populate e2 polynomial (not in NTT)
   poly_t e2 = { 0 };
-  prf_seed[32] = 2 * FIPS203_KEM512_K;
-  uint8_t prf_data[64 * FIPS203_KEM512_ETA2] = { 0 };
-  shake256_xof_once(prf_seed, 33, prf_data, sizeof(prf_data));
-  poly_sample_cbd(&e2, FIPS203_KEM512_ETA2, prf_data);
+  uint8_t buf[64 * PKE512_ETA2] = { 0 };
+  prf(enc_rand, 2 * PKE512_K, buf, sizeof(buf));
+  poly_sample_cbd(&e2, PKE512_ETA2, buf);
 
   // u = (A*r)
-  poly_t u[FIPS203_KEM512_K] = { 0 };
+  poly_t u[PKE512_K] = { 0 };
   mat2_mul(u, a, r);
 
   // u = inverse NTT(u)
-  for (size_t i = 0; i < FIPS203_KEM512_K; i++) {
+  for (size_t i = 0; i < PKE512_K; i++) {
     poly_inv_ntt(u + i);
   }
 
@@ -700,7 +722,7 @@ static inline void pke512_encrypt(uint8_t ct[static FIPS203_PKE512_CT_SIZE], con
   vec2_add(u, e1);
 
   // encode u, append to ct
-  for (size_t i = 0; i < FIPS203_KEM512_K; i++) {
+  for (size_t i = 0; i < PKE512_K; i++) {
     poly_encode_10bit(ct + 320 * i, u + i);
   }
 
@@ -715,28 +737,28 @@ static inline void pke512_encrypt(uint8_t ct[static FIPS203_PKE512_CT_SIZE], con
   poly_add(&v, &mu);  // v += mu
 
   // encode v, append to ct
-  poly_encode_4bit(ct + 320 * FIPS203_KEM512_K, &v);
+  poly_encode_4bit(ct + 320 * PKE512_K, &v);
 }
 
-static void pke512_decrypt(uint8_t m[static 32], const uint8_t dk[static FIPS203_PKE512_DK_SIZE], const uint8_t ct[FIPS203_PKE512_CT_SIZE]) {
+static void pke512_decrypt(uint8_t m[static 32], const uint8_t dk[static PKE512_DK_SIZE], const uint8_t ct[PKE512_CT_SIZE]) {
   // decode u
-  poly_t u[FIPS203_KEM512_K] = { 0 };
-  for (size_t i = 0; i < FIPS203_KEM512_K; i++) {
-    poly_decode_10bit(u + i, ct + 32 * FIPS203_PKE512_DU * i);
+  poly_t u[PKE512_K] = { 0 };
+  for (size_t i = 0; i < PKE512_K; i++) {
+    poly_decode_10bit(u + i, ct + 32 * PKE512_DU * i);
   }
 
   // decode v
   poly_t v = { 0 };
-  poly_decode_4bit(&v, ct + 32 * FIPS203_PKE512_DU * FIPS203_KEM512_K);
+  poly_decode_4bit(&v, ct + 32 * PKE512_DU * PKE512_K);
 
   // decode ŝ
-  poly_t s[FIPS203_KEM512_K] = { 0 };
-  for (size_t i = 0; i < FIPS203_KEM512_K; i++) {
+  poly_t s[PKE512_K] = { 0 };
+  for (size_t i = 0; i < PKE512_K; i++) {
     poly_decode(s + i, dk + 384 * i);
   }
 
   poly_t su = { 0 }; // su = s * u
-  for (size_t i = 0; i < FIPS203_KEM512_K; i++) {
+  for (size_t i = 0; i < PKE512_K; i++) {
     poly_t tmp = { 0 };
     poly_ntt(u + i); // u[i] = NTT(u[i])
     poly_mul(&tmp, s + i, u + i); // tmp = s[i] * u[i]
@@ -759,15 +781,15 @@ void fips203_kem512_keygen(uint8_t ek[static FIPS203_KEM512_EK_SIZE], uint8_t dk
   pke512_keygen(ek, dk, d);
 
   // KEM: populate dk with ek, sha3-256(ek), and z
-  memcpy(dk + FIPS203_PKE512_DK_SIZE, ek, FIPS203_PKE512_EK_SIZE);
-  sha3_256(ek, FIPS203_PKE512_EK_SIZE, dk + FIPS203_PKE512_DK_SIZE + FIPS203_PKE512_EK_SIZE);
-  memcpy(dk + FIPS203_PKE512_DK_SIZE + FIPS203_PKE512_EK_SIZE + 32, z, 32);
+  memcpy(dk + PKE512_DK_SIZE, ek, PKE512_EK_SIZE);
+  sha3_256(ek, PKE512_EK_SIZE, dk + PKE512_DK_SIZE + PKE512_EK_SIZE);
+  memcpy(dk + PKE512_DK_SIZE + PKE512_EK_SIZE + 32, z, 32);
 }
 
-void fips203_kem512_encaps(uint8_t k[static 32], uint8_t ct[static FIPS203_PKE512_CT_SIZE], const uint8_t ek[static FIPS203_PKE512_EK_SIZE], const uint8_t seed[static 32]) {
+void fips203_kem512_encaps(uint8_t k[static 32], uint8_t ct[static FIPS203_KEM512_CT_SIZE], const uint8_t ek[static FIPS203_KEM512_EK_SIZE], const uint8_t seed[static 32]) {
   uint8_t data[64] = { 0 };
   memcpy(data, seed, 32); // append seed
-  sha3_256(ek, FIPS203_PKE512_EK_SIZE, data + 32); // append sha3-256(ek)
+  sha3_256(ek, PKE512_EK_SIZE, data + 32); // append sha3-256(ek)
 
   uint8_t kr[64] = { 0 };
   sha3_512(data, 64, kr); // (K, r) <- sha3-512(data)
@@ -776,35 +798,15 @@ void fips203_kem512_encaps(uint8_t k[static 32], uint8_t ct[static FIPS203_PKE51
   pke512_encrypt(ct, ek, seed, kr + 32); // ct <- pke.encrypt(ek, seed, r)
 }
 
-// Constant time comparison.  Returns true if `a` and `b` differ and
-// false they are the identical.
-static inline bool cdiff(const uint8_t * const restrict a, const uint8_t * const restrict b, const size_t len) {
-  uint8_t r = 0;
-  for (size_t i = 0; i < len; i++) {
-    r |= (a[i] ^ b[i]);
-  }
-
-  return r == 0;
-}
-
-// constant-time copy: copy from `a` if `sel` is `0` and `b` if `sel` is
-// `1`.  
-static inline void ccopy(uint8_t c[static 32], const bool sel, const uint8_t a[static 32], const uint8_t b[static 32]) {
-  const uint8_t mask = sel ? 0xff : 0x00;
-  for (size_t i = 0; i < 32; i++) {
-    c[i] = (a[i] & mask) ^ (b[i] & ~mask);
-  }
-}
-
 // Decapsulate shared key `k` from ciphertext `ct` using KEM decryption
 // key `dk_kem` with implicit rejection.
-void fips203_kem512_decaps(uint8_t k[static 32], const uint8_t ct[static FIPS203_PKE512_CT_SIZE], const uint8_t dk_kem[static FIPS203_KEM512_DK_SIZE]) {
+void fips203_kem512_decaps(uint8_t k[static 32], const uint8_t ct[static FIPS203_KEM512_CT_SIZE], const uint8_t dk_kem[static FIPS203_KEM512_DK_SIZE]) {
   const uint8_t * const dk_pke = dk_kem;
-  const uint8_t * const ek_pke = dk_kem + 384 * FIPS203_KEM512_K;
-  const uint8_t * const h = dk_kem + (2 * 384 * FIPS203_KEM512_K + 32);
-  const uint8_t * const z = dk_kem + (2 * 384 * FIPS203_KEM512_K + 64);
+  const uint8_t * const ek_pke = dk_kem + 384 * PKE512_K;
+  const uint8_t * const h = dk_kem + (2 * 384 * PKE512_K + 32);
+  const uint8_t * const z = dk_kem + (2 * 384 * PKE512_K + 64);
 
-  // decrypt m 
+  // decrypt m
   uint8_t mh[64] = { 0 };
   pke512_decrypt(mh, dk_pke, ct);
   memcpy(mh + 32, h, 32); // copy hash
@@ -813,15 +815,15 @@ void fips203_kem512_decaps(uint8_t k[static 32], const uint8_t ct[static FIPS203
   sha3_512(mh, 64, kr); // (K', r') <- sha3-512(m || r)
 
   // zc = z || ct
-  uint8_t zc[32 + FIPS203_PKE512_CT_SIZE] = { 0 };
+  uint8_t zc[32 + PKE512_CT_SIZE] = { 0 };
   memcpy(zc, z, 32);
-  memcpy(zc + 32, ct, FIPS203_PKE512_CT_SIZE);
+  memcpy(zc + 32, ct, PKE512_CT_SIZE);
 
   // rk: generate implicit rejection key from z and ciphertext
   uint8_t k_rej[32] = { 0 };
   shake256(zc, sizeof(zc), k_rej); // K_rej = J(z||c)
 
-  uint8_t ct2[FIPS203_PKE512_CT_SIZE] = { 0 };
+  uint8_t ct2[PKE512_CT_SIZE] = { 0 };
   pke512_encrypt(ct2, ek_pke, mh, kr + 32); // ct2 <- pke.encrypt(ek, m', r')
 
   ccopy(k, cdiff(ct, ct2, FIPS203_PKE512_CT_SIZE), kr, k_rej);

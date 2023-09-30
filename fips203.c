@@ -297,13 +297,30 @@ typedef struct {
   uint16_t cs[256]; // coefficients
 } poly_t;
 
+// Initialize SHAKE128 XOF by absorbing 32 byte seed `r` followed by
+// bytes `i` and `j`.
+static inline void xof_init(sha3_xof_t * const xof, const uint8_t r[static 32], const uint8_t i, const uint8_t j) {
+  // init shake128 xof
+  shake128_xof_init(xof);
+
+  // absorb rho
+  shake128_xof_absorb(xof, r, 32);
+
+  // absorb i and j
+  const uint8_t ij[2] = { i, j };
+  shake128_xof_absorb(xof, ij, 2);
+}
+
 // initialize polynomial by sampling from given xof.
-static inline void poly_sample_ntt(poly_t * const a, sha3_xof_t * const xof) {
-  uint8_t ds[3] = { 0 };
+static inline void poly_sample_ntt(poly_t * const a, const uint8_t rho[static 32], const uint8_t i, const uint8_t j) {
+  // init xof by absorbing rho, i, and j
+  sha3_xof_t xof = { 0 };
+  xof_init(&xof, rho, i, j);
 
   for (size_t i = 0; i < 256;) {
     // read 3 bytes from xof
-    shake128_xof_squeeze(xof, ds, 3);
+    uint8_t ds[3] = { 0 };
+    shake128_xof_squeeze(&xof, ds, 3);
 
     // split 3 bytes into two 12-bit samples
     const uint16_t d1 = ((uint16_t) ds[0]) + (((uint16_t) (ds[1] & 0xF)) << 4),
@@ -543,20 +560,6 @@ static inline void poly_decode_4bit(poly_t * const p, const uint8_t b[static 128
 // define mat3 and vec2 functions
 DEFINE_MAT_VEC_OPS(2)
 
-// Initialize SHAKE128 XOF by absorbing 32 byte seed `r` followed by
-// bytes `i` and `j`.
-static inline void xof_init(sha3_xof_t * const xof, const uint8_t r[static 32], const uint8_t i, const uint8_t j) {
-  // init shake128 xof
-  shake128_xof_init(xof);
-
-  // absorb rho
-  shake128_xof_absorb(xof, r, 32);
-
-  // absorb i and j
-  const uint8_t ij[2] = { i, j };
-  shake128_xof_absorb(xof, ij, 2);
-}
-
 // Constant-time difference.  Returns true if `a` and `b` differ and
 // false they are the identical.
 static inline bool ct_diff(const uint8_t * const restrict a, const uint8_t * const restrict b, const size_t len) {
@@ -612,12 +615,8 @@ static inline void pke512_keygen(uint8_t ek[static PKE512_EK_SIZE], uint8_t dk[s
   poly_t a[PKE512_K * PKE512_K] = { 0 };
   for (size_t i = 0; i < PKE512_K; i++) {
     for (size_t j = 0; j < PKE512_K; j++) {
-      // init xof, then absorb rho (first 32 bytes of rs), i, and j
-      sha3_xof_t xof = { 0 };
-      xof_init(&xof, rs, i, j);
-
       // sample polynomial
-      poly_sample_ntt(a + (PKE512_K * i + j), &xof);
+      poly_sample_ntt(a + (PKE512_K * i + j), rs, i, j);
     }
   }
 
@@ -669,12 +668,8 @@ static inline void pke512_encrypt(uint8_t ct[static PKE512_CT_SIZE], const uint8
   poly_t a[PKE512_K * PKE512_K] = { 0 };
   for (size_t i = 0; i < PKE512_K; i++) {
     for (size_t j = 0; j < PKE512_K; j++) {
-      // init xof, then absorb rho, i, and j
-      sha3_xof_t xof = { 0 };
-      xof_init(&xof, rho, j, i); // transposed
-
-      // sample polynomial
-      poly_sample_ntt(a + (PKE512_K * i + j), &xof);
+      // sample polynomial (with i and j transposed)
+      poly_sample_ntt(a + (PKE512_K * i + j), rho, j, i);
     }
   }
 

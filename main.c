@@ -1,3 +1,8 @@
+//
+// main.c: Toy application to generate fips203 API.
+//
+
+#include <stdlib.h> // exit()
 #include <stdio.h> // printf()
 #include <string.h> // memcmp()
 #include "fips203.h"

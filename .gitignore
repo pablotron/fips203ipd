@@ -1,3 +1,4 @@
 *.o
 test-fips203
 example-fips203
+tests/sample-ntt/sample-ntt

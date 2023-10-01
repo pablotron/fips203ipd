@@ -20,11 +20,13 @@ end
 T = {
   main: %{
 // number-theoretic transform (NTT) lookup table
+// (used by poly_ntt() and poly_inv_ntt())
 static const uint16_t NTT_LUT[] = {
 %<ntts>s
 };
 
 // polynomial base case multiply lookup table
+// (used by poly_mul())
 static const uint16_t MUL_LUT[] = {
 %<muls>s
 };
@@ -45,7 +47,7 @@ puts(T[:main] % {
 
   muls: 128.times.map { |n|
       T[:mul] % {
-      r: B.pow(bitrev(n), Q),
+      r: B.pow(2 * bitrev(n) + 1, Q),
       q: Q,
       n: n,
       e: 2 * bitrev(n) + 1,

@@ -848,7 +848,7 @@ static inline void pke512_encrypt(uint8_t ct[static PKE512_CT_SIZE], const uint8
   poly_encode_4bit(ct + 320 * PKE512_K, &v);
 }
 
-static void pke512_decrypt(uint8_t m[static 32], const uint8_t dk[static PKE512_DK_SIZE], const uint8_t ct[PKE512_CT_SIZE]) {
+static inline void pke512_decrypt(uint8_t m[static 32], const uint8_t dk[static PKE512_DK_SIZE], const uint8_t ct[PKE512_CT_SIZE]) {
   // decode u
   poly_t u[PKE512_K] = { 0 };
   for (size_t i = 0; i < PKE512_K; i++) {

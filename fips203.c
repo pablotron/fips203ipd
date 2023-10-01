@@ -299,8 +299,15 @@ typedef struct {
   uint16_t cs[256]; // coefficients
 } poly_t;
 
-// Initialize SHAKE128 XOF by absorbing 32 byte seed `r` followed by
-// bytes `i` and `j`.
+/**
+ * Initialize SHAKE128 extendable output function (XOF) by absorbing
+ * 32-byte value `r`, byte `i`, and byte `j`.
+ *
+ * @param[out] xof SHAKE128 XOF context.
+ * @param[in] r Input 32-byte value.
+ * @param[in] i Input byte.
+ * @param[in] j Input byte.
+ */
 static inline void xof_init(sha3_xof_t * const xof, const uint8_t r[static 32], const uint8_t i, const uint8_t j) {
   // init shake128 xof
   shake128_xof_init(xof);
@@ -313,7 +320,16 @@ static inline void xof_init(sha3_xof_t * const xof, const uint8_t r[static 32], 
   shake128_xof_absorb(xof, ij, 2);
 }
 
-// initialize polynomial by sampling from given xof.
+/**
+ * Initialize polynomial `a` by sampling coefficients in the NTT domain
+ * from SHAKE128 extendable output function (XOF) seeded by 32-byte
+ * value `rho`, byte `i`, and byte `j`.
+ *
+ * @param[out] a Output polynomial with coefficients in the NTT domain.
+ * @param[in] rho 32-byte input value used as XOF seed.
+ * @param[in] i One byte input value used as XOF seed.
+ * @param[in] j One byte input value used as XOF seed.
+ */
 static inline void poly_sample_ntt(poly_t * const a, const uint8_t rho[static 32], const uint8_t i, const uint8_t j) {
   // init xof by absorbing rho, i, and j
   sha3_xof_t xof = { 0 };
@@ -341,9 +357,9 @@ static inline void poly_sample_ntt(poly_t * const a, const uint8_t rho[static 32
 }
 
 /**
- * Initialize SHAKE256 XOF as a PRF by absorbing 32-byte `seed` and byte
- * `b`, then read `len` bytes of data from the PRF into the buffer
- * pointed to by `out`.
+ * Initialize SHAKE256 XOF as a pseudo-random function (PRF) by
+ * absorbing 32-byte `seed` and byte `b`, then read `len` bytes of data
+ * from the PRF into the buffer pointed to by `out`.
  *
  * @param[in] seed 32 bytes.
  * @param[in] b 1 byte.
@@ -360,9 +376,10 @@ static inline void prf(const uint8_t seed[static 32], const uint8_t b, uint8_t *
   shake256_xof_once(buf, sizeof(buf), out, len);
 }
 
-// Sample polynomial coefficients from centered binomial distribution
-// (CBD) using factor `ETA` and bytes from PRF seeded by 32-byte value
-// `seed` and single byte `b`.
+// Define function which samples polynomial coefficients from centered
+// binomial distribution (CBD) with error `ETA` using `64 * ETA` bytes
+// from pseudo-random function (PRF) seeded by 32-byte value `seed` and
+// single byte `b`.
 #define DEF_POLY_SAMPLE_CBD_ETA(ETA) \
   static inline void poly_sample_cbd_eta ## ETA (poly_t * const p, const uint8_t seed[32], const uint8_t b) { \
     /* read 64 * eta bytes of data from prf */ \
@@ -392,7 +409,11 @@ DEF_POLY_SAMPLE_CBD_ETA(3)
 // define poly_sample_cbd_eta2() (PKE512_ETA2 = 2)
 DEF_POLY_SAMPLE_CBD_ETA(2)
 
-// Compute number theoretic transform (NTT) of given polynomial p E R_q.
+/**
+ * Compute in-place number-theoretic transform (NTT) of polynomial `p`.
+ *
+ * @param[in/out] p Polynomial.
+ */
 static inline void poly_ntt(poly_t * const p) {
   uint8_t k = 1;
   for (uint16_t len = 128; len >= 2; len /= 2) {
@@ -408,8 +429,12 @@ static inline void poly_ntt(poly_t * const p) {
   }
 }
 
-// Compute the inverse number theoretic transform (NTT) of given
-// polynomial p E T_q.
+/**
+ * Compute in-place inverse number-theoretic transform (NTT) of
+ * polynomial `p`.
+ *
+ * @param[in/out] p Polynomial.
+ */
 static inline void poly_inv_ntt(poly_t * const p) {
   uint8_t k = 127;
   for (uint16_t len = 2; len <= 128; len *= 2) {
@@ -429,24 +454,41 @@ static inline void poly_inv_ntt(poly_t * const p) {
   }
 }
 
-// add polynomial `a` to polynomial `b` component-wise, and store the
-// results in `a`.
+/**
+ * Add polynomial `a` to polynomial `b` component-wise, and store the
+ * sum in `a`.
+ *
+ * @param[in/out] a Polynomial.
+ * @param[in] b Polynomial.
+ */
 static inline void poly_add(poly_t * const restrict a, const poly_t * const restrict b) {
   for (size_t i = 0; i < 256; i++) {
     a->cs[i] = ((uint32_t) a->cs[i] + (uint32_t) b->cs[i]) % Q;
   }
 }
 
-// Subtract polynomial `b` from polynomial `a` component-wise, and store the
-// results in `a`.
+/**
+ * Subtract polynomial `b` from polynomial `a` component-wise, and store the
+ * result in `a`.
+ *
+ * @param[in/out] a Polynomial.
+ * @param[in] b Polynomial.
+ */
 static inline void poly_sub(poly_t * const restrict a, const poly_t * const restrict b) {
   for (size_t i = 0; i < 256; i++) {
     a->cs[i] = ((uint32_t) a->cs[i] + (uint32_t) (Q - b->cs[i])) % Q;
   }
 }
 
-// multiply polynomial `a` to polynomial `b` and store the results in
-// `c`.  `a` and `b` are assumed to be in NTT.
+/**
+ * Multiply `a` and `b` and store the product in `c`.
+ *
+ * Note: `a` and `b` are assumed to be in the NTT domain.
+ *
+ * @param[out] c Product polynomial, in the NTT domain.
+ * @param[in] a Input polynomial, in the NTT domain.
+ * @param[in] b Input polynomial, in the NTT domain.
+ */
 static inline void poly_mul(poly_t * const restrict c, const poly_t * const restrict a, const poly_t * const restrict b) {
   for (size_t i = 0; i < 128; i++) {
     const uint32_t a0 = a->cs[2 * i],
@@ -458,7 +500,13 @@ static inline void poly_mul(poly_t * const restrict c, const poly_t * const rest
   }
 }
 
-// Encode 12-bit polynomial coefficients into 384 bytes
+/**
+ * Pack 12-bit coefficients of polynomial `p` and serialize them into
+ * 384 bytes of the output buffer `out`.
+ *
+ * @param[out] out Output buffer.  Length must be >=384 bytes.
+ * @param[in] Input polynomial.
+ */
 static void poly_encode(uint8_t out[static 384], const poly_t * const a) {
   for (size_t i = 0; i < 128; i++) {
     const uint16_t a0 = a->cs[2 * i],

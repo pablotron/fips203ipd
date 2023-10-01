@@ -303,6 +303,8 @@ typedef struct {
  * Initialize SHAKE128 extendable output function (XOF) by absorbing
  * 32-byte value `r`, byte `i`, and byte `j`.
  *
+ * Used by `poly_sample_ntt()` to sample polynomail coefficients.
+ *
  * @param[out] xof SHAKE128 XOF context.
  * @param[in] r Input 32-byte value.
  * @param[in] i Input byte.
@@ -361,6 +363,9 @@ static inline void poly_sample_ntt(poly_t * const a, const uint8_t rho[static 32
  * absorbing 32-byte `seed` and byte `b`, then read `len` bytes of data
  * from the PRF into the buffer pointed to by `out`.
  *
+ * Used by `poly_sample_cbd_etaN()` functions to sample polynomail
+ * coefficients.
+ *
  * @param[in] seed 32 bytes.
  * @param[in] b 1 byte.
  * @param[out] out Output buffer of length `len`.
@@ -376,10 +381,17 @@ static inline void prf(const uint8_t seed[static 32], const uint8_t b, uint8_t *
   shake256_xof_once(buf, sizeof(buf), out, len);
 }
 
-// Define function which samples polynomial coefficients from centered
-// binomial distribution (CBD) with error `ETA` using `64 * ETA` bytes
-// from pseudo-random function (PRF) seeded by 32-byte value `seed` and
-// single byte `b`.
+/**
+ * Define function which reads `64 * ETA` bytes from a pseudo-random
+ * function (PRF) seeded by 32-byte value `seed` and one byte value `b`,
+ * then samples values from the PRF output using the centered binomial
+ * distribution (CBD) with error `ETA` and writes the values as the
+ * coefficients of output polynomial `p`.
+ *
+ * @param[out] p Output polynomial with CBD(ETA) distributed coefficients.
+ * @param[in] seed 32-byte input value used as PRF seed.
+ * @param[in] b 1 byte input value used as PRF seed.
+ */
 #define DEF_POLY_SAMPLE_CBD_ETA(ETA) \
   static inline void poly_sample_cbd_eta ## ETA (poly_t * const p, const uint8_t seed[32], const uint8_t b) { \
     /* read 64 * eta bytes of data from prf */ \
@@ -517,7 +529,13 @@ static void poly_encode(uint8_t out[static 384], const poly_t * const a) {
   }
 }
 
-// Compress coefficients to 10 bits and then encode them as 320 bytes.
+/**
+ * Compress coefficients of polynomial `p` to 10 bits and then serialize
+ * them as 320 bytes in output buffer `out`.
+ *
+ * @param[out] out Output buffer.  Length must be >= 320 bytes.
+ * @param[in] p Input polynomial.
+ */
 static inline void poly_encode_10bit(uint8_t out[static 320], const poly_t * const p) {
   for (size_t i = 0; i < 64; i++) {
     // compress (shift and round)
@@ -534,7 +552,13 @@ static inline void poly_encode_10bit(uint8_t out[static 320], const poly_t * con
   }
 }
 
-// Compress coefficients to 4 bits and then encode them as 128 bytes.
+/**
+ * Compress coefficients of polynomial `p` to 4 bits and then serialize
+ * them as 128 bytes in output buffer `out`.
+ *
+ * @param[out] Output buffer.  Length must be >=128 bytes.
+ * @param[in] p Input polynomial.
+ */
 static inline void poly_encode_4bit(uint8_t out[static 128], const poly_t * const p) {
   for (size_t i = 0; i < 128; i++) {
     // compress (shift and round)
@@ -544,7 +568,13 @@ static inline void poly_encode_4bit(uint8_t out[static 128], const poly_t * cons
   }
 }
 
-// Compress coefficients to 1 bit and then encode them as 32 bytes.
+/**
+ * Compress coefficients of polynomial `p` to 1 bit and then serialize
+ * them as 32 bytes in output buffer `out`.
+ *
+ * @param[out] Output buffer.  Length must be >=32 bytes.
+ * @param[in] p Input polynomial.
+ */
 static inline void poly_encode_1bit(uint8_t out[static 32], const poly_t * const p) {
   for (size_t i = 0; i < 32; i++) {
     out[i] = (((p->cs[8 * i + 0] > 1664)) & 1) |
@@ -558,21 +588,37 @@ static inline void poly_encode_1bit(uint8_t out[static 32], const poly_t * const
   }
 }
 
-// decode 12-bit polynomial coefficients from 384 byte buffer
-// FIXME: should we check for invalid coefficients here?
-static void poly_decode(poly_t * const p, const uint8_t b[static 384]) {
+/**
+ * Read 384 bytes from input buffer `b`, parse bytes as 256 packed
+ * 12-bit integers, and then save the integers as coefficients of output
+ * polynomial `p`.
+ *
+ * Note: Input integers are reduced modulo 3329.  The draft standard
+ * says values in the range [3329, 4095] should be rejected as an
+ * error, but doing so introduces an ambiguous error state not present
+ * in Kyber.
+ *
+ * According to a discussion on the pqc-forum mailing list, implicit
+ * reduction modulo 3329 is a better option.  See discussion here:
+ *
+ * https://groups.google.com/a/list.nist.gov/d/msgid/pqc-forum/ZRQvPT7kQ51NIRyJ%40disp3269
+ *
+ * @param[out] p Output polynomial.
+ * @param[in] Input buffer of length 384 bytes.
+ */
+static inline void poly_decode(poly_t * const p, const uint8_t b[static 384]) {
   for (size_t i = 0; i < 128; i++) {
     const uint8_t b0 = b[3 * i],
                   b1 = b[3 * i + 1],
                   b2 = b[3 * i + 2];
-    p->cs[2 * i] = ((uint16_t) b0) | ((((uint16_t) b1) & 0xf) << 4);
-    p->cs[2 * i + 1] = (((uint16_t) b1 & 0xf0) >> 4) | (((uint16_t) b2) << 4);
+    p->cs[2 * i] = (((uint16_t) b0) | ((((uint16_t) b1) & 0xf) << 4)) % Q;
+    p->cs[2 * i + 1] = ((((uint16_t) b1 & 0xf0) >> 4) | (((uint16_t) b2) << 4)) % Q;
   }
 }
 
 // Decode 1-bit coefficients from 32 bytes and then decompress them
 // (e.g., multiply by 1665).
-static void poly_decode_1bit(poly_t * const p, const uint8_t b[static 32]) {
+static inline void poly_decode_1bit(poly_t * const p, const uint8_t b[static 32]) {
   for (size_t i = 0; i < 256; i++) {
     p->cs[i] = 1665 * ((b[i / 8] >> (i % 8)) & 1);
   }
@@ -580,7 +626,7 @@ static void poly_decode_1bit(poly_t * const p, const uint8_t b[static 32]) {
 
 // Decode 10-bit coefficients from 320 bytes and then decompress them
 // (e.g., multiply by 3).
-static void poly_decode_10bit(poly_t * const p, const uint8_t b[static 320]) {
+static inline void poly_decode_10bit(poly_t * const p, const uint8_t b[static 320]) {
   for (size_t i = 0; i < 64; i++) {
     const uint16_t b0 = b[5 * i],
                    b1 = b[5 * i + 1],

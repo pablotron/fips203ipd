@@ -11,7 +11,7 @@
 
 #include <stdio.h> // printf(), fprintf(), fputs()
 #include <stdlib.h> // atoi()
-#include "sha3.h" // shake128_xof_{init,absorb,squeeze}()
+#include "sha3.h" // shake256_xof_{init,absorb,squeeze}()
 
 #define OUT_LEN 16 // output length, in bytes
 
@@ -22,23 +22,25 @@ int main(int argc, char *argv[]) {
   (void) argc;
   (void) argv;
 
-  // init xof
-  sha3_xof_t xof = { 0 };
-  shake128_xof_init(&xof);
-
   for (size_t i = 0; i < 256; i++) {
     const uint8_t b = i;
+
+    // init xof
+    sha3_xof_t xof = { 0 };
+    shake256_xof_init(&xof);
+
     // absorb seed and byte
-    shake128_xof_absorb(&xof, SEED, 32);
-    shake128_xof_absorb(&xof, &b, 1);
+    shake256_xof_absorb(&xof, SEED, 32);
+    shake256_xof_absorb(&xof, &b, 1);
 
+    // squeeze OUT_LEN bytes into buf
     uint8_t buf[OUT_LEN] = { 0 };
-    shake128_xof_squeeze(&xof, buf, sizeof(buf));
+    shake256_xof_squeeze(&xof, buf, sizeof(buf));
 
-    // print results
+    // print expected result to stdout
     printf("{ .name = \"%d\", .b = %d, .exp = { ", b, b);
     for (size_t j = 0; j < sizeof(buf); j++) {
-      printf("%s%02x", j ? ", " : "", buf[j]);
+      printf("%s0x%02x", j ? ", " : "", buf[j]);
     }
     fputs(" } },\n", stdout);
   }

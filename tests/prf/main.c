@@ -36,11 +36,11 @@ int main(int argc, char *argv[]) {
     shake128_xof_squeeze(&xof, buf, sizeof(buf));
 
     // print results
-    printf(".b = %d, .exp = { ", b);
+    printf("{ .name = \"%d\", .b = %d, .exp = { ", b, b);
     for (size_t j = 0; j < sizeof(buf); j++) {
       printf("%s%02x", j ? ", " : "", buf[j]);
     }
-    fputs(" },\n", stdout);
+    fputs(" } },\n", stdout);
   }
 
   // return success

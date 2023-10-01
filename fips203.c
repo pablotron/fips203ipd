@@ -294,11 +294,6 @@ static const uint16_t MUL_LUT[] = {
   1175, // n = 127, 2*bitrev(127)+1 = 255, (17**255)%3329) = 1175
 };
 
-// Polynomial with 256 coefficients.
-typedef struct {
-  uint16_t cs[256]; // coefficients
-} poly_t;
-
 /**
  * Initialize SHAKE128 extendable output function (XOF) by absorbing
  * 32-byte value `r`, byte `i`, and byte `j`.
@@ -321,6 +316,69 @@ static inline void xof_init(sha3_xof_t * const xof, const uint8_t r[static 32], 
   const uint8_t ij[2] = { i, j };
   shake128_xof_absorb(xof, ij, 2);
 }
+
+/**
+ * Initialize SHAKE256 XOF as a pseudo-random function (PRF) by
+ * absorbing 32-byte `seed` and byte `b`, then read `len` bytes of data
+ * from the PRF into the buffer pointed to by `out`.
+ *
+ * Used by `poly_sample_cbd_etaN()` functions to sample polynomail
+ * coefficients.
+ *
+ * @param[in] seed 32 bytes.
+ * @param[in] b 1 byte.
+ * @param[out] out Output buffer of length `len`.
+ * @param[in] len Output buffer length.
+ */
+static inline void prf(const uint8_t seed[static 32], const uint8_t b, uint8_t * const out, const size_t len) {
+  // populate `buf` with `seed` and byte `b`
+  uint8_t buf[33] = { 0 };
+  memcpy(buf, seed, 32);
+  buf[32] = b;
+
+  // absorb `buf` into SHAKE256 XOF, write `len` bytes to `out`
+  shake256_xof_once(buf, sizeof(buf), out, len);
+}
+
+/**
+ * Constant-time difference.  Returns true if `a` and `b` differ and
+ * false they are the identical.
+ *
+ * @param[in] a Input value of length `len`.
+ * @param[in] b Input value of length `len`.
+ * @param[in] len Length of input values, in bytes.
+ *
+ * @return true if `a` and `b differ, and false if they are identical.
+ */
+static inline bool ct_diff(const uint8_t * const restrict a, const uint8_t * const restrict b, const size_t len) {
+  uint8_t r = 0;
+  for (size_t i = 0; i < len; i++) {
+    r |= (a[i] ^ b[i]);
+  }
+
+  return r == 0;
+}
+
+/**
+ * Constant-time copy. Copy `a` to `c` if `sel is `false` or copy `b` to
+ * `c` if `sel` is `true`.
+ *
+ * @param[out] c 32-byte output buffer.
+ * @param[in] sel Selection condition.
+ * @param[in] a 32-byte input value.
+ * @param[in] b 32-byte input value.
+ */
+static inline void ct_copy(uint8_t c[static 32], const bool sel, const uint8_t a[static 32], const uint8_t b[static 32]) {
+  const uint8_t mask = sel ? 0xff : 0x00;
+  for (size_t i = 0; i < 32; i++) {
+    c[i] = (a[i] & mask) ^ (b[i] & ~mask);
+  }
+}
+
+// Polynomial with 256 12-bit coefficients.
+typedef struct {
+  uint16_t cs[256]; // coefficients
+} poly_t;
 
 /**
  * Initialize polynomial `a` by sampling coefficients in the NTT domain
@@ -356,29 +414,6 @@ static inline void poly_sample_ntt(poly_t * const a, const uint8_t rho[static 32
       a->cs[i++] = d2;
     }
   }
-}
-
-/**
- * Initialize SHAKE256 XOF as a pseudo-random function (PRF) by
- * absorbing 32-byte `seed` and byte `b`, then read `len` bytes of data
- * from the PRF into the buffer pointed to by `out`.
- *
- * Used by `poly_sample_cbd_etaN()` functions to sample polynomail
- * coefficients.
- *
- * @param[in] seed 32 bytes.
- * @param[in] b 1 byte.
- * @param[out] out Output buffer of length `len`.
- * @param[in] len Output buffer length.
- */
-static inline void prf(const uint8_t seed[static 32], const uint8_t b, uint8_t * const out, const size_t len) {
-  // populate `buf` with `seed` and byte `b`
-  uint8_t buf[33] = { 0 };
-  memcpy(buf, seed, 32);
-  buf[32] = b;
-
-  // absorb `buf` into SHAKE256 XOF, write `len` bytes to `out`
-  shake256_xof_once(buf, sizeof(buf), out, len);
 }
 
 /**
@@ -688,26 +723,6 @@ static inline void poly_decode_4bit(poly_t * const p, const uint8_t b[static 128
 
 // define mat3 and vec2 functions
 DEFINE_MAT_VEC_OPS(2)
-
-// Constant-time difference.  Returns true if `a` and `b` differ and
-// false they are the identical.
-static inline bool ct_diff(const uint8_t * const restrict a, const uint8_t * const restrict b, const size_t len) {
-  uint8_t r = 0;
-  for (size_t i = 0; i < len; i++) {
-    r |= (a[i] ^ b[i]);
-  }
-
-  return r == 0;
-}
-
-// Constant-time copy: copy from `a` if `sel` is `0` and `b` if `sel` is
-// `1`.
-static inline void ct_copy(uint8_t c[static 32], const bool sel, const uint8_t a[static 32], const uint8_t b[static 32]) {
-  const uint8_t mask = sel ? 0xff : 0x00;
-  for (size_t i = 0; i < 32; i++) {
-    c[i] = (a[i] & mask) ^ (b[i] & ~mask);
-  }
-}
 
 /**
  * Generate PKE512 encryption and decryption key from given 32-byte

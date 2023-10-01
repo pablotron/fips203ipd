@@ -322,7 +322,7 @@ static inline void xof_init(sha3_xof_t * const xof, const uint8_t r[static 32], 
  * absorbing 32-byte `seed` and byte `b`, then read `len` bytes of data
  * from the PRF into the buffer pointed to by `out`.
  *
- * Used by `poly_sample_cbd_etaN()` functions to sample polynomail
+ * Used by `poly_sample_cbdN()` functions to sample polynomail
  * coefficients.
  *
  * @param[in] seed 32 bytes.
@@ -344,6 +344,8 @@ static inline void prf(const uint8_t seed[static 32], const uint8_t b, uint8_t *
  * Constant-time difference.  Returns true if `a` and `b` differ and
  * false they are the identical.
  *
+ * Used by `fips203_kem512_decaps()`.
+ *
  * @param[in] a Input value of length `len`.
  * @param[in] b Input value of length `len`.
  * @param[in] len Length of input values, in bytes.
@@ -362,6 +364,8 @@ static inline bool ct_diff(const uint8_t * const restrict a, const uint8_t * con
 /**
  * Constant-time copy. Copy `a` to `c` if `sel is `false` or copy `b` to
  * `c` if `sel` is `true`.
+ *
+ * Used by `fips203_kem512_decaps()`.
  *
  * @param[out] c 32-byte output buffer.
  * @param[in] sel Selection condition.
@@ -427,8 +431,8 @@ static inline void poly_sample_ntt(poly_t * const a, const uint8_t rho[static 32
  * @param[in] seed 32-byte input value used as PRF seed.
  * @param[in] b 1 byte input value used as PRF seed.
  */
-#define DEF_POLY_SAMPLE_CBD_ETA(ETA) \
-  static inline void poly_sample_cbd_eta ## ETA (poly_t * const p, const uint8_t seed[32], const uint8_t b) { \
+#define DEF_POLY_SAMPLE_CBD(ETA) \
+  static inline void poly_sample_cbd ## ETA (poly_t * const p, const uint8_t seed[32], const uint8_t b) { \
     /* read 64 * eta bytes of data from prf */ \
     uint8_t buf[64 * ETA] = { 0 }; \
     prf(seed, b, buf, sizeof(buf)); \
@@ -450,11 +454,11 @@ static inline void poly_sample_ntt(poly_t * const a, const uint8_t rho[static 32
     } \
   }
 
-// define poly_sample_cbd_eta3() (PKE512_ETA1 = 3)
-DEF_POLY_SAMPLE_CBD_ETA(3)
+// define poly_sample_cbd3() (PKE512_ETA1 = 3)
+DEF_POLY_SAMPLE_CBD(3)
 
-// define poly_sample_cbd_eta2() (PKE512_ETA2 = 2)
-DEF_POLY_SAMPLE_CBD_ETA(2)
+// define poly_sample_cbd2() (PKE512_ETA2 = 2)
+DEF_POLY_SAMPLE_CBD(2)
 
 /**
  * Compute in-place number-theoretic transform (NTT) of polynomial `p`.
@@ -752,7 +756,7 @@ static inline void pke512_keygen(uint8_t ek[static PKE512_EK_SIZE], uint8_t dk[s
   poly_t se[2 * PKE512_K] = { 0 }; // s = se[0, k], e = se[k, 2k-1]
   for (size_t i = 0; i < 2 * PKE512_K; i++) {
     // sample polynomial coefficients from CBD(ETA1)
-    poly_sample_cbd_eta3(se + i, sigma, i);
+    poly_sample_cbd3(se + i, sigma, i);
 
     // apply NTT to polynomial coefficients (R_q -> T_q)
     poly_ntt(se + i);
@@ -800,7 +804,7 @@ static inline void pke512_encrypt(uint8_t ct[static PKE512_CT_SIZE], const uint8
   poly_t r[PKE512_K] = { 0 };
   for (size_t i = 0; i < PKE512_K; i++) {
     // sample polynomial coefficients from CBD(ETA1)
-    poly_sample_cbd_eta3(r + i, enc_rand, i);
+    poly_sample_cbd3(r + i, enc_rand, i);
 
     // apply NTT to polynomial coefficients (R_q -> T_q)
     poly_ntt(r + i);
@@ -810,12 +814,12 @@ static inline void pke512_encrypt(uint8_t ct[static PKE512_CT_SIZE], const uint8
   poly_t e1[PKE512_K] = { 0 };
   for (size_t i = 0; i < PKE512_K; i++) {
     // sample polynomial coefficients from CBD(ETA2)
-    poly_sample_cbd_eta2(e1 + i, enc_rand, PKE512_K + i);
+    poly_sample_cbd2(e1 + i, enc_rand, PKE512_K + i);
   }
 
   // populate e2 polynomial (not in NTT)
   poly_t e2 = { 0 };
-  poly_sample_cbd_eta2(&e2, enc_rand, 2 * PKE512_K);
+  poly_sample_cbd2(&e2, enc_rand, 2 * PKE512_K);
 
   // u = (A*r)
   poly_t u[PKE512_K] = { 0 };

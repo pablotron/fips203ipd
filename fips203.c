@@ -360,9 +360,10 @@ static inline void prf(const uint8_t seed[static 32], const uint8_t b, uint8_t *
   shake256_xof_once(buf, sizeof(buf), out, len);
 }
 
-// Function to sample polynomial coefficients from centered binomial
-// distribution (CBD) using factor eta and bytes from prf data `prf`.
-#define DEF_POLY_SAMPLE_CBD(ETA) \
+// Sample polynomial coefficients from centered binomial distribution
+// (CBD) using factor `ETA` and bytes from PRF seeded by 32-byte value
+// `seed` and single byte `b`.
+#define DEF_POLY_SAMPLE_CBD_ETA(ETA) \
   static inline void poly_sample_cbd_eta ## ETA (poly_t * const p, const uint8_t seed[32], const uint8_t b) { \
     /* read 64 * eta bytes of data from prf */ \
     uint8_t buf[64 * ETA] = { 0 }; \
@@ -385,8 +386,11 @@ static inline void prf(const uint8_t seed[static 32], const uint8_t b, uint8_t *
     } \
   }
 
-DEF_POLY_SAMPLE_CBD(3) // PKE512_ETA1 = 3
-DEF_POLY_SAMPLE_CBD(2) // PKE512_ETA2 = 2
+// define poly_sample_cbd_eta3() (PKE512_ETA1 = 3)
+DEF_POLY_SAMPLE_CBD_ETA(3)
+
+// define poly_sample_cbd_eta2() (PKE512_ETA2 = 2)
+DEF_POLY_SAMPLE_CBD_ETA(2)
 
 // Compute number theoretic transform (NTT) of given polynomial p E R_q.
 static inline void poly_ntt(poly_t * const p) {

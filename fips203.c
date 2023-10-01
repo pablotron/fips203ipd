@@ -1545,7 +1545,7 @@ static void test_prf(void) {
     { .name = "255", .b = 255, .exp = { 0x73, 0x3d, 0x45, 0x87, 0xa0, 0x39, 0xf5, 0x6c, 0x6c, 0xa0, 0x29, 0x0c, 0x94, 0x60, 0x87, 0xfd } },
   };
 
-  const uint8_t SEED[32] = { 0 };
+  const uint8_t SEED[32] = { 0 }; // all zero prf seed
 
   for (size_t i = 0; i < sizeof(TESTS)/sizeof(TESTS[0]); i++) {
     uint8_t got[16] = { 0 };
@@ -1562,6 +1562,37 @@ static void test_prf(void) {
   }
 }
 
+static void test_poly_sample_cbd3(void) {
+  static const struct {
+    const uint8_t byte; // test byte
+    const poly_t exp; // expected polynomial
+  } TESTS[] = {{
+    .byte = 0,
+    .exp = {
+      .cs = {
+        0,
+      },
+    },
+  }};
+
+  const uint8_t SEED[32] = { 0 }; // all zero prf seed
+
+
+  for (size_t i = 0; i < sizeof(TESTS)/sizeof(TESTS[0]); i++) {
+    poly_t got = { 0 };
+    poly_sample_cbd3(&got, SEED, TESTS[i].byte);
+
+    // check for expected value
+    if (memcmp(&got, &TESTS[i].exp, sizeof(poly_t))) {
+      fprintf(stderr, "test_poly_sample_cbd5(%d) failed, got:\n", TESTS[i].byte);
+      poly_write(stderr, &got);
+      fprintf(stderr, "\nexp:\n");
+      poly_write(stderr, &(TESTS[i].exp));
+      fprintf(stderr, "\n");
+    }
+  }
+}
+
 int main(void) {
   test_poly_ntt_roundtrip();
   test_poly_sample_ntt();
@@ -1569,5 +1600,6 @@ int main(void) {
   test_poly_sub();
   test_poly_mul();
   test_prf();
+  test_poly_sample_cbd3();
 }
 #endif // TEST_FIPS203

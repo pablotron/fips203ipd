@@ -562,9 +562,9 @@ static void poly_encode(uint8_t out[static 384], const poly_t * const a) {
   for (size_t i = 0; i < 128; i++) {
     const uint16_t a0 = a->cs[2 * i],
                    a1 = a->cs[2 * i + 1];
-    out[3 * i] = (uint8_t) a0;
-    out[3 * i + 1] = (uint8_t) (((a0 & 0xf00) >> 4) | ((a1 & 0x0f) << 4));
-    out[3 * i + 2] = (uint8_t) ((a1 & 0xff0) >> 4);
+    out[3 * i] = a0 & 0x0ff;
+    out[3 * i + 1] = ((a0 & 0xf00) >> 8) | ((a1 & 0x0f) << 4);
+    out[3 * i + 2] = (a1 & 0xff0) >> 4;
   }
 }
 
@@ -578,10 +578,10 @@ static void poly_encode(uint8_t out[static 384], const poly_t * const a) {
 static inline void poly_encode_10bit(uint8_t out[static 320], const poly_t * const p) {
   for (size_t i = 0; i < 64; i++) {
     // compress (shift and round)
-    const uint16_t p0 = (p->cs[4 * i] >> 2) + ((p->cs[4 * i] >> 2) & 1),
-                   p1 = (p->cs[4 * i + 1] >> 2) + ((p->cs[4 * i + 1] >> 1) & 1),
-                   p2 = (p->cs[4 * i + 2] >> 2) + ((p->cs[4 * i + 2] >> 1) & 1),
-                   p3 = (p->cs[4 * i + 3] >> 2) + ((p->cs[4 * i + 3] >> 1) & 1);
+    const uint32_t p0 = (1024 * (uint32_t) p->cs[4 * i + 0])/Q >> 10,
+                   p1 = (1024 * (uint32_t) p->cs[4 * i + 1])/Q >> 10,
+                   p2 = (1024 * (uint32_t) p->cs[4 * i + 2])/Q >> 10,
+                   p3 = (1024 * (uint32_t) p->cs[4 * i + 3])/Q >> 10;
 
     out[5 * i + 0] = (p0) & 0xff;
     out[5 * i + 1] = ((p0 >> 8) & 0x03) | ((p1 & 0x3f) << 2);
@@ -601,9 +601,9 @@ static inline void poly_encode_10bit(uint8_t out[static 320], const poly_t * con
 static inline void poly_encode_4bit(uint8_t out[static 128], const poly_t * const p) {
   for (size_t i = 0; i < 128; i++) {
     // compress (shift and round)
-    const uint16_t p0 = (p->cs[2 * i] >> 8) + ((p->cs[2 * i] >> 7) & 1),
-                   p1 = (p->cs[2 * i + 1] >> 8) + ((p->cs[2 * i + 1] >> 7) & 1);
-    out[i] = p0 | (p1 << 4);
+    const uint16_t p0 = (16 * (uint32_t) p->cs[2 * i + 0]) / Q,
+                   p1 = (16 * (uint32_t) p->cs[2 * i + 1]) / Q;
+    out[i] = (p0 & 0x0f) | ((p1 & 0x0f) << 4);
   }
 }
 
@@ -650,7 +650,7 @@ static inline void poly_decode(poly_t * const p, const uint8_t b[static 384]) {
     const uint8_t b0 = b[3 * i],
                   b1 = b[3 * i + 1],
                   b2 = b[3 * i + 2];
-    p->cs[2 * i] = (((uint16_t) b0) | ((((uint16_t) b1) & 0xf) << 4)) % Q;
+    p->cs[2 * i] = (((uint16_t) b0) | ((((uint16_t) b1) & 0xf) << 8)) % Q;
     p->cs[2 * i + 1] = ((((uint16_t) b1 & 0xf0) >> 4) | (((uint16_t) b2) << 4)) % Q;
   }
 }
@@ -659,7 +659,7 @@ static inline void poly_decode(poly_t * const p, const uint8_t b[static 384]) {
 // (e.g., multiply by 1665).
 static inline void poly_decode_1bit(poly_t * const p, const uint8_t b[static 32]) {
   for (size_t i = 0; i < 256; i++) {
-    p->cs[i] = 1665 * ((b[i / 8] >> (i % 8)) & 1);
+    p->cs[i] = (Q * (uint32_t) ((b[i / 8] >> (i % 8)) & 1)) >> 1;
   }
 }
 
@@ -667,16 +667,16 @@ static inline void poly_decode_1bit(poly_t * const p, const uint8_t b[static 32]
 // (e.g., multiply by 3).
 static inline void poly_decode_10bit(poly_t * const p, const uint8_t b[static 320]) {
   for (size_t i = 0; i < 64; i++) {
-    const uint16_t b0 = b[5 * i],
+    const uint32_t b0 = b[5 * i + 0],
                    b1 = b[5 * i + 1],
                    b2 = b[5 * i + 2],
                    b3 = b[5 * i + 3],
                    b4 = b[5 * i + 4];
 
-    p->cs[4 * i + 0] = 3 * (b0 | ((b1 & 3) << 8));
-    p->cs[4 * i + 1] = 3 * ((b1 >> 2) | ((b2 & 0xf) << 6));
-    p->cs[4 * i + 2] = 3 * ((b2 >> 4) | ((b3 & 0x3f) << 4));
-    p->cs[4 * i + 3] = 3 * ((b3 >> 6) | (b4 << 2));
+    p->cs[4 * i + 0] = (Q * (b0 | ((b1 & 3) << 8))) >> 10;
+    p->cs[4 * i + 1] = (Q * ((b1 >> 2) | ((b2 & 0xf) << 6))) >> 10;
+    p->cs[4 * i + 2] = (Q * ((b2 >> 4) | ((b3 & 0x3f) << 4))) >> 10;
+    p->cs[4 * i + 3] = (Q * ((b3 >> 6) | (b4 << 2))) >> 10;
   }
 }
 
@@ -684,10 +684,11 @@ static inline void poly_decode_10bit(poly_t * const p, const uint8_t b[static 32
 // (e.g., multiply by 208).
 static inline void poly_decode_4bit(poly_t * const p, const uint8_t b[static 128]) {
   for (size_t i = 0; i < 128; i++) {
-    const uint16_t b0 = b[i];
+    const uint32_t b0 = b[i] & 0x0f,
+                   b1 = (b[i] & 0xf0) >> 4;
 
-    p->cs[2 * i + 0] = 208 * ((b0 & 0x0f) << 8);
-    p->cs[2 * i + 1] = 208 * ((b0 & 0xf0) << 4);
+    p->cs[2 * i + 0] = (Q * b0) >> 4;
+    p->cs[2 * i + 1] = (Q * b1) >> 4;
   }
 }
 

@@ -655,14 +655,6 @@ static inline void poly_decode(poly_t * const p, const uint8_t b[static 384]) {
   }
 }
 
-// Decode 1-bit coefficients from 32 bytes and then decompress them
-// (e.g., multiply by 1665).
-static inline void poly_decode_1bit(poly_t * const p, const uint8_t b[static 32]) {
-  for (size_t i = 0; i < 256; i++) {
-    p->cs[i] = (Q * (uint32_t) ((b[i / 8] >> (i % 8)) & 1)) >> 1;
-  }
-}
-
 // Decode 10-bit coefficients from 320 bytes and then decompress them
 // (e.g., multiply by 3).
 static inline void poly_decode_10bit(poly_t * const p, const uint8_t b[static 320]) {
@@ -689,6 +681,14 @@ static inline void poly_decode_4bit(poly_t * const p, const uint8_t b[static 128
 
     p->cs[2 * i + 0] = (Q * b0) >> 4;
     p->cs[2 * i + 1] = (Q * b1) >> 4;
+  }
+}
+
+// Decode 1-bit coefficients from 32 bytes and then decompress them
+// (e.g., multiply by 1665).
+static inline void poly_decode_1bit(poly_t * const p, const uint8_t b[static 32]) {
+  for (size_t i = 0; i < 256; i++) {
+    p->cs[i] = (Q * (uint32_t) ((b[i / 8] >> (i % 8)) & 1)) >> 1;
   }
 }
 

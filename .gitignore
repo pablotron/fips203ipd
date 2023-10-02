@@ -2,4 +2,5 @@
 test-fips203
 example-fips203
 tests/sample-ntt/sample-ntt
+tests/sample-cbd/sample-cbd
 tests/prf/prf

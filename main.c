@@ -28,13 +28,13 @@ static const uint8_t ENCAPS_SEED[32] = {
 
 static void test_fips203_kem512(void) {
   // generate encapsulation and decapsulation keys
-  uint8_t ek[800] = { 0 };
-  uint8_t dk[1632] = { 0 };
+  uint8_t ek[FIPS203_KEM512_EK_SIZE] = { 0 };
+  uint8_t dk[FIPS203_KEM512_DK_SIZE] = { 0 };
   fips203_kem512_keygen(ek, dk, KEYGEN_SEED);
 
   // encapsulate, get key and ciphertext
   uint8_t k0[32] = { 0 };
-  uint8_t ct[768] = { 0 };
+  uint8_t ct[FIPS203_KEM512_CT_SIZE] = { 0 };
   fips203_kem512_encaps(k0, ct, ek, ENCAPS_SEED);
 
   // decapsulate key from ciphertext
@@ -42,7 +42,7 @@ static void test_fips203_kem512(void) {
   fips203_kem512_decaps(k1, ct, dk);
 
   // compare keys
-  if (memcmp(k0, k1, 32)) {
+  if (memcmp(k0, k1, sizeof(k0))) {
     printf("test_fips203_kem512: k0 != k1:\nk0 = ");
     hex_write(stdout, k0, sizeof(k0));
     printf("\nk1 = ");

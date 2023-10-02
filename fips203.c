@@ -1680,6 +1680,77 @@ static void test_poly_sample_cbd3(void) {
   dist_check("test_poly_sample_cbd3()", NUM_POLYS, sums, sums_len, EXP_DIST, sizeof(EXP_DIST) / sizeof(EXP_DIST[0]));
 }
 
+static void test_poly_sample_cbd2(void) {
+  static const struct {
+    const uint8_t byte; // test byte
+    const poly_t exp; // expected polynomial
+  } TESTS[] = {{
+    .byte = 0,
+    .exp = {
+      .cs = {
+        // expected coefficients, eta = 2, seed = { 0 }, byte = 0
+        0, 3327, 0, 2, 3327, 3327, 1, 3328, 1, 3328, 0, 2, 0, 0, 1, 3328, 1, 0, 1, 2, 3328, 0, 1, 3327, 3328, 0, 3327, 1, 3328, 1, 0, 0, 3328, 0, 0, 0, 1, 0, 3328, 3327, 0, 2, 0, 1, 3328, 1, 0, 1, 0, 3327, 0, 0, 0, 3328, 0, 0, 3327, 3328, 0, 3328, 3327, 1, 0, 0, 3328, 3328, 0, 0, 0, 0, 3327, 0, 0, 0, 3327, 3328, 3327, 0, 0, 2, 0, 1, 0, 0, 1, 1, 3328, 1, 0, 0, 0, 0, 3328, 3328, 1, 3328, 0, 3327, 3328, 1, 0, 2, 2, 1, 3328, 3328, 0, 0, 0, 1, 3328, 0, 0, 0, 1, 3328, 3328, 0, 2, 0, 0, 3328, 0, 0, 1, 0, 1, 3328, 0, 0, 3328, 0, 0, 1, 3328, 2, 0, 1, 0, 1, 2, 0, 0, 3328, 0, 3328, 0, 1, 0, 3328, 0, 1, 3328, 0, 0, 0, 2, 0, 0, 1, 0, 0, 0, 0, 3328, 1, 1, 3328, 3328, 0, 0, 3327, 0, 1, 0, 3328, 0, 2, 1, 1, 3327, 1, 1, 3328, 0, 1, 0, 3328, 3327, 0, 0, 3328, 0, 1, 1, 3328, 3328, 1, 0, 1, 0, 0, 0, 2, 1, 0, 0, 0, 3328, 3328, 3327, 3328, 2, 0, 1, 2, 1, 0, 3328, 0, 0, 3328, 3328, 1, 3328, 3328, 3328, 3328, 3328, 3328, 0, 3328, 0, 3328, 3328, 3328, 3327, 0, 0, 1, 2, 0, 0, 1, 0, 1, 3328, 3328, 1, 3328, 1, 0, 1, 3327, 2, 0
+      },
+    },
+  }, {
+    .byte = 1,
+    .exp = {
+      .cs = {
+        // expected coefficients, eta = 2, seed = { 0 }, byte = 1
+        2, 3328, 0, 0, 3328, 2, 0, 0, 3328, 3327, 3328, 0, 3328, 0, 3327, 0, 3327, 3328, 0, 0, 0, 3327, 1, 0, 1, 0, 0, 0, 3328, 0, 1, 0, 1, 0, 1, 0, 0, 1, 1, 0, 0, 3328, 3328, 0, 1, 0, 2, 0, 0, 3328, 3328, 1, 1, 1, 3328, 0, 3328, 2, 2, 0, 1, 1, 1, 0, 0, 0, 1, 3328, 3328, 3327, 0, 1, 3328, 1, 3328, 0, 0, 0, 0, 0, 1, 1, 1, 3328, 3328, 0, 0, 1, 1, 3328, 3327, 1, 2, 0, 1, 0, 0, 3328, 1, 1, 3328, 3328, 1, 1, 3328, 1, 1, 1, 0, 3327, 0, 3328, 3328, 0, 0, 0, 0, 0, 3328, 2, 3328, 0, 0, 0, 1, 0, 0, 0, 3328, 3328, 3327, 0, 0, 0, 3328, 1, 0, 0, 0, 0, 3328, 1, 1, 1, 2, 3328, 3328, 0, 1, 0, 3328, 2, 1, 0, 0, 3327, 1, 0, 1, 0, 1, 3328, 0, 1, 0, 0, 0, 0, 0, 3328, 1, 1, 1, 3327, 0, 1, 2, 0, 0, 3328, 1, 2, 3328, 3328, 0, 0, 1, 2, 0, 3327, 0, 1, 3328, 0, 1, 2, 0, 0, 1, 0, 0, 1, 0, 3328, 0, 1, 0, 0, 3328, 3327, 0, 0, 3328, 0, 3327, 1, 0, 2, 1, 0, 0, 3327, 1, 0, 3328, 3328, 1, 0, 0, 0, 3328, 0, 0, 0, 0, 3328, 3328, 3327, 1, 1, 3328, 0, 1, 3328, 1, 1, 0, 3328, 3328, 1, 0, 0, 3328, 0, 0, 0
+      },
+    },
+  }};
+
+  const uint8_t SEED[32] = { 0 }; // all zero prf seed
+
+  for (size_t i = 0; i < sizeof(TESTS)/sizeof(TESTS[0]); i++) {
+    // sample coefficients
+    poly_t got = { 0 };
+    poly_sample_cbd2(&got, SEED, TESTS[i].byte);
+
+    // check for expected value
+    if (memcmp(&got, &TESTS[i].exp, sizeof(poly_t))) {
+      fprintf(stderr, "test_poly_sample_cbd2(%d) failed, got:\n", TESTS[i].byte);
+      poly_write(stderr, &got);
+      fprintf(stderr, "\nexp:\n");
+      poly_write(stderr, &(TESTS[i].exp));
+      fprintf(stderr, "\n");
+    }
+  }
+
+  const size_t NUM_POLYS = 10000; // number of samples
+
+  // calculate coefficient distribution for 10k polynomials
+  dist_t sums[32] = { 0 };
+  size_t sums_len = 0;
+  for (size_t i = 0; i < NUM_POLYS; i++) {
+    // init seed (first 4 bytes of 32-byte seed value used for PRF are
+    // treated as an u32)
+    union { uint8_t u8[32]; uint32_t u32[8]; } dist_seed =  { .u8 = { 0 } };
+    dist_seed.u32[0] = i;
+
+    // sample coefficients
+    poly_t got = { 0 };
+    poly_sample_cbd2(&got, dist_seed.u8, 0);
+
+    // accumulate polynomial coefficient distribution
+    dist_add_poly(sums, &sums_len, &got);
+  }
+
+  // expected coefficient distribution for one polynomial
+  const dist_t EXP_DIST[] = {
+    { 3327, 16 }, // -2, 1/16*256 = 16
+    { 3328, 64 }, // -1, 4/16*256 = 64
+    { 0, 96 },    //  0, 6/16*256 = 96
+    { 1, 64 },    // +1, 4/16*256 = 64
+    { 2, 16 },    // +2, 1/16*256 = 16
+  };
+
+  // check for expected coefficient distribution
+  dist_check("test_poly_sample_cbd2()", NUM_POLYS, sums, sums_len, EXP_DIST, sizeof(EXP_DIST) / sizeof(EXP_DIST[0]));
+}
+
 int main(void) {
   test_poly_ntt_roundtrip();
   test_poly_sample_ntt();
@@ -1688,5 +1759,6 @@ int main(void) {
   test_poly_mul();
   test_prf();
   test_poly_sample_cbd3();
+  test_poly_sample_cbd2();
 }
 #endif // TEST_FIPS203

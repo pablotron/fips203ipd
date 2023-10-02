@@ -755,7 +755,7 @@ static inline void pke512_keygen(uint8_t ek[static PKE512_EK_SIZE], uint8_t dk[s
   // (note: sampling is done in R_q, not in NTT domain)
   poly_t se[2 * PKE512_K] = { 0 }; // s = se[0, k], e = se[k, 2k-1]
   for (size_t i = 0; i < 2 * PKE512_K; i++) {
-    // sample polynomial coefficients from CBD(ETA1)
+    // sample polynomial coefficients from CBD(3) (PKE512_ETA1)
     poly_sample_cbd3(se + i, sigma, i);
 
     // apply NTT to polynomial coefficients (R_q -> T_q)
@@ -803,7 +803,7 @@ static inline void pke512_encrypt(uint8_t ct[static PKE512_CT_SIZE], const uint8
   // populate r vector (in NTT)
   poly_t r[PKE512_K] = { 0 };
   for (size_t i = 0; i < PKE512_K; i++) {
-    // sample polynomial coefficients from CBD(ETA1)
+    // sample polynomial coefficients from CBD(3) (PKE512_ETA1)
     poly_sample_cbd3(r + i, enc_rand, i);
 
     // apply NTT to polynomial coefficients (R_q -> T_q)
@@ -813,7 +813,7 @@ static inline void pke512_encrypt(uint8_t ct[static PKE512_CT_SIZE], const uint8
   // populate e1 vector (not in NTT)
   poly_t e1[PKE512_K] = { 0 };
   for (size_t i = 0; i < PKE512_K; i++) {
-    // sample polynomial coefficients from CBD(ETA2)
+    // sample polynomial coefficients from CBD(2) (PKE512_ETA2)
     poly_sample_cbd2(e1 + i, enc_rand, PKE512_K + i);
   }
 
@@ -1562,6 +1562,51 @@ static void test_prf(void) {
   }
 }
 
+typedef struct {
+  uint16_t val; // coefficient
+  size_t sum;   // expected count
+} dist_t;
+
+// Accumulate polynomial coefficient distribution in `sums` and
+// `sums_len`.
+static void dist_add_poly(dist_t * const sums, size_t * const sums_len, const poly_t * const p) {
+  for (size_t i = 0; i < 256; i++) {
+    const uint16_t val = p->cs[i];
+    bool found = false;
+    for (size_t j = 0; !found && j < *sums_len; j++) {
+      if (sums[j].val == val) {
+        sums[j].sum++;
+        found = true;
+      }
+    }
+
+    if (!found) {
+      sums[*sums_len].val = val;
+      sums[*sums_len].sum = 1;
+      *sums_len = *sums_len + 1;
+    }
+  }
+}
+
+// Check for expected polynomial coefficient distribution.
+static void dist_check(const char * const name, const size_t num_polys, const dist_t * const got, const size_t got_len, const dist_t * const exp, const size_t exp_len) {
+  for (size_t i = 0; i < exp_len; i++) {
+    for (size_t j = 0; j < got_len; j++) {
+      if (exp[i].val == got[j].val) {
+        // get expected sum and delta (abs diff) between sums
+        const size_t exp_sum = num_polys * exp[i].sum,
+                     got_sum = got[j].sum,
+                     delta = (exp_sum > got_sum) ? (exp_sum - got_sum) : (got_sum - exp_sum);
+
+        // check for >1% delta from expected sum
+        if (delta > (exp_sum / 100)) {
+          fprintf(stderr, "%s failed: coef = %d, got = %zu, exp = %zu\n", name, got[j].val, got_sum, exp_sum);
+        }
+      }
+    }
+  }
+}
+
 static void test_poly_sample_cbd3(void) {
   static const struct {
     const uint8_t byte; // test byte
@@ -1570,27 +1615,69 @@ static void test_poly_sample_cbd3(void) {
     .byte = 0,
     .exp = {
       .cs = {
-        0,
+        // expected coefficients, seed = { 0 }, byte = 0
+        0, 0, 2, 0, 1, 0, 0, 1, 0, 3328, 3326, 1, 3328, 3328, 3327, 3328, 0, 3328, 1, 0, 2, 3328, 1, 1, 1, 3328, 3328, 1, 0, 3327, 0, 2, 2, 2, 0, 3328, 1, 3328, 0, 0, 3328, 3327, 2, 3327, 1, 1, 2, 2, 3328, 3328, 1, 0, 0, 3327, 1, 0, 1, 3327, 1, 0, 3328, 0, 3327, 3328, 2, 1, 1, 0, 0, 0, 3328, 2, 0, 0, 3328, 3328, 0, 1, 0, 0, 2, 3328, 0, 1, 1, 3328, 1, 2, 0, 0, 1, 0, 3328, 0, 3328, 0, 2, 3328, 0, 3327, 1, 3328, 3328, 1, 1, 3328, 1, 0, 1, 0, 0, 3328, 3327, 3328, 3328, 2, 0, 1, 0, 0, 3327, 0, 0, 0, 2, 3328, 0, 3328, 0, 0, 1, 0, 1, 0, 3328, 1, 0, 1, 1, 3328, 3328, 2, 1, 0, 2, 0, 1, 3327, 3326, 3327, 0, 1, 1, 3328, 0, 0, 0, 0, 3327, 1, 0, 0, 0, 2, 1, 0, 3326, 1, 3, 2, 1, 0, 3328, 3328, 0, 0, 1, 2, 0, 2, 3328, 2, 0, 2, 3328, 0, 0, 1, 3328, 3328, 0, 1, 1, 0, 3, 0, 3327, 3328, 3327, 3328, 2, 1, 0, 3328, 3328, 0, 3327, 3327, 2, 2, 2, 0, 0, 3328, 3, 2, 3327, 3328, 1, 3327, 2, 0, 1, 3328, 3328, 3328, 3327, 1, 3328, 3328, 0, 1, 3327, 2, 0, 1, 1, 3327, 3327, 0, 1, 0, 1, 0, 2, 0, 3328, 2, 0, 3328, 3328, 1, 3326, 1, 1, 1
+      },
+    },
+  }, {
+    .byte = 1,
+    .exp = {
+      .cs = {
+        // expected coefficients, seed = { 0 }, byte = 1
+        1, 2, 1, 2, 1, 0, 3328, 2, 3328, 3327, 2, 1, 1, 3328, 3327, 3328, 0, 1, 3328, 2, 2, 0, 1, 0, 3327, 0, 1, 0, 1, 3328, 3327, 3327, 1, 1, 3328, 0, 0, 3327, 0, 3327, 3328, 2, 3328, 3328, 2, 3328, 0, 3328, 0, 3328, 0, 3327, 1, 2, 3328, 3327, 3326, 2, 2, 3328, 3327, 1, 3328, 0, 2, 2, 2, 1, 3328, 0, 2, 3328, 0, 0, 0, 0, 2, 3327, 2, 1, 3327, 3328, 0, 3328, 3327, 1, 1, 2, 0, 3326, 1, 0, 3327, 3328, 0, 3328, 2, 0, 0, 3328, 3328, 3328, 1, 3328, 2, 2, 3327, 0, 1, 3327, 3327, 0, 0, 2, 1, 3328, 1, 0, 3328, 0, 3328, 3328, 0, 3328, 1, 0, 0, 3328, 3328, 3328, 0, 2, 0, 1, 0, 0, 1, 0, 2, 3328, 3328, 0, 2, 1, 3327, 3328, 1, 3328, 2, 0, 3327, 3327, 0, 3326, 1, 3328, 0, 0, 3327, 0, 0, 2, 3328, 0, 3328, 1, 0, 3328, 0, 3328, 2, 1, 0, 3328, 2, 1, 0, 1, 0, 3327, 0, 3, 3327, 3328, 0, 3327, 0, 3328, 0, 0, 0, 2, 0, 0, 0, 1, 3328, 1, 0, 1, 0, 3328, 0, 0, 1, 0, 3327, 0, 0, 3327, 3, 2, 0, 3328, 2, 3328, 0, 1, 3326, 0, 0, 3328, 2, 3328, 0, 3328, 1, 3328, 3328, 1, 0, 0, 0, 3328, 1, 1, 0, 2, 0, 3328, 3328, 1, 3328, 0, 0, 3328, 3328, 1, 0, 0, 1, 2, 0, 0, 3327, 3328
       },
     },
   }};
 
   const uint8_t SEED[32] = { 0 }; // all zero prf seed
 
-
   for (size_t i = 0; i < sizeof(TESTS)/sizeof(TESTS[0]); i++) {
+    // sample coefficients
     poly_t got = { 0 };
     poly_sample_cbd3(&got, SEED, TESTS[i].byte);
 
     // check for expected value
     if (memcmp(&got, &TESTS[i].exp, sizeof(poly_t))) {
-      fprintf(stderr, "test_poly_sample_cbd5(%d) failed, got:\n", TESTS[i].byte);
+      fprintf(stderr, "test_poly_sample_cbd3(%d) failed, got:\n", TESTS[i].byte);
       poly_write(stderr, &got);
       fprintf(stderr, "\nexp:\n");
       poly_write(stderr, &(TESTS[i].exp));
       fprintf(stderr, "\n");
     }
   }
+
+  const size_t NUM_POLYS = 10000; // number of samples
+
+  // calculate coefficient distribution for 10k polynomials
+  dist_t sums[32] = { 0 };
+  size_t sums_len = 0;
+  for (size_t i = 0; i < NUM_POLYS; i++) {
+    // init seed (first 4 bytes of 32-byte seed value used for PRF are
+    // treated as an u32)
+    union { uint8_t u8[32]; uint32_t u32[8]; } dist_seed =  { .u8 = { 0 } };
+    dist_seed.u32[0] = i;
+
+    // sample coefficients
+    poly_t got = { 0 };
+    poly_sample_cbd3(&got, dist_seed.u8, 0);
+
+    // accumulate polynomial coefficient distribution
+    dist_add_poly(sums, &sums_len, &got);
+  }
+
+  // expected coefficient distribution for one polynomial
+  const dist_t EXP_DIST[] = {
+    { 3326, 4 },  // -3, 1/64*256 = 4
+    { 3327, 24 }, // -2, 6/64*256 = 24
+    { 3328, 60 }, // -1, 15/64*256 = 60
+    { 0, 80 },    //  0, 20/64*256 = 80
+    { 1, 60 },    // +1, 15/64*256 = 60
+    { 2, 24 },    // +2, 6/64*256 = 24
+    { 3, 4 },     // +3, 1/64*256 = 4
+  };
+
+  // check for expected coefficient distribution
+  dist_check("test_poly_sample_cbd3()", NUM_POLYS, sums, sums_len, EXP_DIST, sizeof(EXP_DIST) / sizeof(EXP_DIST[0]));
 }
 
 int main(void) {

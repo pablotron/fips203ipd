@@ -2833,7 +2833,7 @@ static inline void poly_decode_1bit(poly_t * const p, const uint8_t b[static 32]
 #define DEFINE_MAT_VEC_OPS(N) \
   /* multiply NxN matrix of polynomials in `mat` by vector of */ \
   /* polynomials in `vec` and store the product in vector `out`. */ \
-  static inline void mat ## N ## _mul(poly_t out[static N], poly_t mat[static N*N], poly_t vec[static N]) { \
+  static inline void mat ## N ## _mul(poly_t out[static N], const poly_t mat[static N*N], const poly_t vec[static N]) { \
     /* clear result */ \
     memset(out, 0, sizeof(N * sizeof(poly_t))); \
     for (size_t y = 0; y < N; y++) { \
@@ -4251,6 +4251,70 @@ static void test_poly_decode_1bit(void) {
   }
 }
 
+static void test_mat2_mul(void) {
+  static const struct {
+    const char *name; // test name
+    const poly_t mat[4];
+    const poly_t vec[2];
+    const poly_t exp[2];
+  } TESTS[] = {{
+    .name = "[[(1), (x)], [(x^2), (x^3)]] * [x^4, x^5]^T",
+    .mat = {
+      { .cs = { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
+      { .cs = { 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 } },
+      { .cs = { 0, 0, 1, 0, 0, 0, 0, 0, 0, 0 } },
+      { .cs = { 0, 0, 0, 1, 0, 0, 0, 0, 0, 0 } },
+    },
+
+    .vec = {
+      { .cs = { 0, 0, 0, 0, 1, 0, 0, 0, 0, 0 } },
+      { .cs = { 0, 0, 0, 0, 0, 1, 0, 0, 0, 0 } },
+    },
+
+    .exp = {
+      { .cs = { 0, 0, 0, 0, 1, 0, 1, 0, 0, 0 } },
+      { .cs = { 0, 0, 0, 0, 0, 0, 1, 0, 1, 0 } },
+    },
+  }};
+
+  for (size_t i = 0; i < sizeof(TESTS)/sizeof(TESTS[0]); i++) {
+    // populate matrix, convert to NTT
+    poly_t mat[4] = { 0 };
+    memcpy(mat, TESTS[i].mat, sizeof(mat));
+    for (size_t j = 0; j < sizeof(mat) / sizeof(mat[0]); j++) {
+      poly_ntt(mat + j);
+    }
+
+    // populate vector, convert to NTT
+    poly_t vec[2] = { 0 };
+    for (size_t j = 0; j < sizeof(vec) / sizeof(vec[0]); j++) {
+      poly_ntt(vec + j);
+    }
+
+    // right-multiply matrix and vector
+    poly_t got[2] = { 0 };
+    mat2_mul(got, TESTS[i].mat, TESTS[i].vec);
+
+    // apply inverse NTT
+    for (size_t j = 0; j < sizeof(got) / sizeof(got[0]); j++) {
+      poly_inv_ntt(vec + j);
+    }
+
+    // check for expected value
+    if (memcmp(&got, &(TESTS[i].exp), sizeof(got))) {
+      fprintf(stderr, "test_poly_encode_1bit(\"%s\") failed, got:\n0 = ", TESTS[i].name);
+      poly_write(stderr, got);
+      fprintf(stderr, "\n1 = ");
+      poly_write(stderr, got + 1);
+      fprintf(stderr, "\nexp:\n0 = ");
+      poly_write(stderr, TESTS[i].exp);
+      fprintf(stderr, "\n1 = ");
+      poly_write(stderr, TESTS[i].exp + 1);
+      fprintf(stderr, "\n");
+    }
+  }
+}
+
 int main(void) {
   test_poly_ntt_roundtrip();
   test_poly_sample_ntt();
@@ -4267,5 +4331,6 @@ int main(void) {
   test_poly_decode_10bit();
   test_poly_decode_4bit();
   test_poly_decode_1bit();
+  test_mat2_mul();
 }
 #endif // TEST_FIPS203

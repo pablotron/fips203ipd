@@ -3013,7 +3013,7 @@ static inline void pke512_encrypt(uint8_t ct[static PKE512_CT_SIZE], const uint8
  * PKE512 decryption key `dk` and store the result in output buffer `m`.
  *
  * @param[out] m Output plaintext message (32 bytes).
- * @param[in] dk PKE512 decryption key (800 bytes).
+ * @param[in] dk PKE512 decryption key (768 bytes).
  * @param[in] ct Input ciphertext buffer (768 bytes).
  */
 static inline void pke512_decrypt(uint8_t m[static 32], const uint8_t dk[static PKE512_DK_SIZE], const uint8_t ct[PKE512_CT_SIZE]) {

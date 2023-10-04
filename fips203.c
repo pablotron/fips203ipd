@@ -3066,6 +3066,15 @@ void fips203_kem512_keygen(uint8_t ek[static FIPS203_KEM512_EK_SIZE], uint8_t dk
   memcpy(dk + PKE512_DK_SIZE + PKE512_EK_SIZE + 32, z, 32);
 }
 
+/**
+ * Generate KEM512 shared key `k` and ciphertext `ct` from given
+ * encapsulation key `ek` and randomness `seed`.
+ *
+ * @param[out] k Shared key (32 bytes).
+ * @param[out] ct Ciphertext (768 bytes).
+ * @param[in] ek KEM512 encapsulation key (800 bytes).
+ * @param[in] seed Random seed (32 bytes).
+ */
 void fips203_kem512_encaps(uint8_t k[static 32], uint8_t ct[static FIPS203_KEM512_CT_SIZE], const uint8_t ek[static FIPS203_KEM512_EK_SIZE], const uint8_t seed[static 32]) {
   uint8_t data[64] = { 0 };
   memcpy(data, seed, 32); // append seed
@@ -3073,9 +3082,10 @@ void fips203_kem512_encaps(uint8_t k[static 32], uint8_t ct[static FIPS203_KEM51
 
   uint8_t kr[64] = { 0 };
   sha3_512(data, 64, kr); // (K, r) <- sha3-512(data)
+  const uint8_t * const r = kr + 32; // get r
 
-  memcpy(k, kr, 32); // copy shared key
-  pke512_encrypt(ct, ek, seed, kr + 32); // ct <- pke.encrypt(ek, seed, r)
+  memcpy(k, kr, 32); // copy shared key to output
+  pke512_encrypt(ct, ek, seed, r); // ct <- pke.encrypt(ek, seed, r)
 }
 
 // Decapsulate shared key `k` from ciphertext `ct` using KEM decryption

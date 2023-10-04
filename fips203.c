@@ -2862,8 +2862,9 @@ static inline void poly_decode_1bit(poly_t * const p, const uint8_t b[static 32]
       poly_add(c, &prod); \
     } \
   } \
+  \
   /* apply NTT to vector */ \
-  static inline void vec ## N ## _ntt(poly_t vec[static 2]) { \
+  static inline void vec ## N ## _ntt(poly_t vec[static N]) { \
     for (size_t i = 0; i < N; i++) { \
       poly_ntt(vec + i); \
     } \
@@ -2952,34 +2953,27 @@ static inline void pke512_encrypt(uint8_t ct[static PKE512_CT_SIZE], const uint8
     }
   }
 
-  // populate r vector (in NTT)
+  // sample r vector from CBD(3) (PKE512_ETA1)
   poly_t r[PKE512_K] = { 0 };
   for (size_t i = 0; i < PKE512_K; i++) {
-    // sample polynomial coefficients from CBD(3) (PKE512_ETA1)
     poly_sample_cbd3(r + i, enc_rand, i);
   }
   vec2_ntt(r); // r = NTT(r)
 
-  // populate e1 vector (not in NTT)
+  // sample e1 vector from CBD(2) (PKE512_ETA2)
   poly_t e1[PKE512_K] = { 0 };
   for (size_t i = 0; i < PKE512_K; i++) {
-    // sample polynomial coefficients from CBD(2) (PKE512_ETA2)
     poly_sample_cbd2(e1 + i, enc_rand, PKE512_K + i);
   }
 
-  // populate e2 polynomial (not in NTT)
+  // sample e2 polynomial from CBD(2) (PKE512_ETA2)
   poly_t e2 = { 0 };
   poly_sample_cbd2(&e2, enc_rand, 2 * PKE512_K);
 
-  // u = (A*r)
   poly_t u[PKE512_K] = { 0 };
-  mat2_mul(u, a, r);
-
-  // u = inverse NTT(u)
-  vec2_inv_ntt(u);
-
-  // u += e1
-  vec2_add(u, e1);
+  mat2_mul(u, a, r);  // u = (A*r)
+  vec2_inv_ntt(u);    // u = invntt(u)
+  vec2_add(u, e1);    // u += e1
 
   // encode u, append to ct
   for (size_t i = 0; i < PKE512_K; i++) {
@@ -2992,7 +2986,7 @@ static inline void pke512_encrypt(uint8_t ct[static PKE512_CT_SIZE], const uint8
 
   poly_t v = { 0 };
   vec2_mul(&v, t, r); // v = t * r
-  poly_inv_ntt(&v);   // v = inverse NTT(v)
+  poly_inv_ntt(&v);   // v = InvNTT(v)
   poly_add(&v, &e2);  // v += e2
   poly_add(&v, &mu);  // v += mu
 
@@ -3095,8 +3089,19 @@ void fips203_kem512_decaps(uint8_t k[static 32], const uint8_t ct[static FIPS203
 
 // write polynomial coefficients to given file handle
 static void poly_write(FILE *fh, const poly_t * const p) {
-  for (size_t i = 0; i < 256; i++) {
+  // find max
+  size_t max = 0;
+  for (size_t i = 255; i > max; i--) {
+    if (p->cs[i]) {
+      max = i;
+    }
+  }
+  for (size_t i = 0; i < max; i++) {
     fprintf(fh, "%s%d", (i ? ", " : ""), p->cs[i]);
+  }
+
+  if (max) {
+    fputs(", ...", fh);
   }
 }
 

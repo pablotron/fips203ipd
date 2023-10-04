@@ -4345,6 +4345,46 @@ static void test_mat2_mul(void) {
   }
 }
 
+static void test_vec2_add(void) {
+  static const struct {
+    const char *name; // test name
+    const poly_t a[2]; // test value a
+    const poly_t b[2]; // test value b
+    const poly_t exp[2]; // expected value
+  } TESTS[] = {{
+    .name = "[1, x]^T + [x^2, x^3]^T = [1 + x^2, x + x^3]^T",
+    .a = {
+      { .cs = { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
+      { .cs = { 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    },
+
+    .b = {
+      { .cs = { 0, 0, 1, 0, 0, 0, 0, 0, 0, 0 } },
+      { .cs = { 0, 0, 0, 1, 0, 0, 0, 0, 0, 0 } },
+    },
+
+    .exp = {
+      { .cs = { 1, 0, 1, 0, 0, 0, 0, 0, 0, 0 } },
+      { .cs = { 0, 1, 0, 1, 0, 0, 0, 0, 0, 0 } },
+    },
+  }};
+
+  for (size_t i = 0; i < sizeof(TESTS)/sizeof(TESTS[0]); i++) {
+    poly_t got[2] = { 0 };
+    memcpy(got, TESTS[i].a, sizeof(got)); // got = a
+
+    vec2_add(got, TESTS[i].b); // got += b
+
+    // check for expected value
+    if (memcmp(got, TESTS[i].exp, sizeof(got))) {
+      fprintf(stderr, "test_vec2_add(\"%s\") failed, got:\n", TESTS[i].name);
+      vec2_write(stderr, "got", got);
+      fprintf(stderr, "exp:\n");
+      vec2_write(stderr, "exp", TESTS[i].exp);
+    }
+  }
+}
+
 int main(void) {
   test_poly_ntt_roundtrip();
   test_poly_sample_ntt();
@@ -4362,5 +4402,6 @@ int main(void) {
   test_poly_decode_4bit();
   test_poly_decode_1bit();
   test_mat2_mul();
+  test_vec2_add();
 }
 #endif // TEST_FIPS203

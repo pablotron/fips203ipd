@@ -2922,7 +2922,7 @@ static inline void pke512_keygen(uint8_t ek[static PKE512_EK_SIZE], uint8_t dk[s
 
   // encode t (NTT)
   for (size_t i = 0; i < PKE512_K; i++) {
-    poly_encode(ek + (386 * i), t + i);
+    poly_encode(ek + (384 * i), t + i);
   }
 
   // ek <- t || rho
@@ -2930,7 +2930,7 @@ static inline void pke512_keygen(uint8_t ek[static PKE512_EK_SIZE], uint8_t dk[s
 
   // dk <- s (NTT)
   for (size_t i = 0; i < PKE512_K; i++) {
-    poly_encode(dk + (386 * i), se + i);
+    poly_encode(dk + (384 * i), se + i);
   }
 }
 

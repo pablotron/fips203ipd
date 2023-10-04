@@ -4481,6 +4481,44 @@ static void test_vec2_ntt(void) {
   }
 }
 
+static void test_pke512_keygen(void) {
+  static const struct {
+    const char *name; // test name
+    const uint8_t seed[32]; // test seed
+    const uint8_t exp_ek[PKE512_EK_SIZE]; // expected ek (800 bytes)
+    const uint8_t exp_dk[PKE512_DK_SIZE]; // expected dk (768 bytes)
+  } TESTS[] = {{
+    .name = "all-zero",
+    .seed = { 0 },
+    .exp_ek = { 0 },
+    .exp_dk = { 0 },
+  }};
+
+  for (size_t i = 0; i < sizeof(TESTS)/sizeof(TESTS[0]); i++) {
+    // generate pke512 ek and dk from seed
+    uint8_t got_ek[PKE512_EK_SIZE] = { 0 }, got_dk[PKE512_DK_SIZE] = { 0 };
+    pke512_keygen(got_ek, got_dk, TESTS[i].seed);
+
+    // check for expected ek
+    if (memcmp(&got_ek, &(TESTS[i].exp_ek), sizeof(got_ek))) {
+      fprintf(stderr, "test_vec2_ntt(\"%s\") ek check failed, got ek:\n", TESTS[i].name);
+      hex_write(stderr, got_ek, sizeof(got_ek));
+      fprintf(stderr, "\nexp ek:\n");
+      hex_write(stderr, TESTS[i].exp_ek, sizeof(got_ek));
+      fputs("\n", stderr);
+    }
+
+    // check for expected dk
+    if (memcmp(&got_dk, &(TESTS[i].exp_dk), sizeof(got_dk))) {
+      fprintf(stderr, "test_vec2_ntt(\"%s\") dk check failed, got dk:\n", TESTS[i].name);
+      hex_write(stderr, got_dk, sizeof(got_dk));
+      fprintf(stderr, "\nexp dk:\n");
+      hex_write(stderr, TESTS[i].exp_dk, sizeof(got_dk));
+      fputs("\n", stderr);
+    }
+  }
+}
+
 int main(void) {
   test_poly_ntt_roundtrip();
   test_poly_sample_ntt();
@@ -4501,5 +4539,6 @@ int main(void) {
   test_vec2_add();
   test_vec2_dot();
   test_vec2_ntt();
+  test_pke512_keygen();
 }
 #endif // TEST_FIPS203

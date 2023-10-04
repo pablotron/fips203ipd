@@ -4330,22 +4330,29 @@ static void test_poly_decode_1bit(void) {
   }
 }
 
-// apply NTT to 2x2 matrix
-// FIXME: move this to general matrix ops?
-static void mat2_ntt(poly_t mat[static 4]) {
-  for (size_t i = 0; i < 4; i++) {
-    poly_ntt(mat + i);
+// define test functions for NxN matrices and N-dim vectors.
+#define DEFINE_MAT_VEC_TEST_FUNCS(N) \
+  /* apply NTT to NxN matrix */ \
+  static void mat ## N ## _ntt(poly_t mat[static N*N]) { \
+    for (size_t i = 0; i < N*N; i++) { \
+      poly_ntt(mat + i); \
+    } \
+  } \
+  \
+  /* write vecN to file handle */ \
+  static void vec ## N ## _write(FILE *fh, const char *name, const poly_t vec[static N]) { \
+    for (size_t i = 0; i < N; i++) { \
+      fprintf(fh, "%s[%zu] = ", name, i); \
+      poly_write(fh, vec + i); \
+      fputs("\n", fh); \
+    } \
   }
-}
 
-// write vector to file handle
-static void vec2_write(FILE *fh, const char *name, const poly_t vec[static 2]) {
-  for (size_t i = 0; i < 2; i++) {
-    fprintf(fh, "%s[%zu] = ", name, i);
-    poly_write(fh, vec + i);
-    fputs("\n", fh);
-  }
-}
+// define mat2 and vec2 test functions (used by pke512)
+DEFINE_MAT_VEC_TEST_FUNCS(2)
+
+// define mat3 and vec3 test functions (used by pke768)
+DEFINE_MAT_VEC_TEST_FUNCS(3)
 
 static void test_mat2_mul(void) {
   static const struct {

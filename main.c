@@ -54,12 +54,41 @@ static void test_fips203_kem512(void) {
   printf("test_fips203_kem512: ok\n");
 }
 
+static void test_fips203_kem768(void) {
+  // generate encapsulation and decapsulation keys
+  uint8_t ek[FIPS203_KEM768_EK_SIZE] = { 0 };
+  uint8_t dk[FIPS203_KEM768_DK_SIZE] = { 0 };
+  fips203_kem768_keygen(ek, dk, KEYGEN_SEED);
+
+  // encapsulate, get key and ciphertext
+  uint8_t k0[32] = { 0 };
+  uint8_t ct[FIPS203_KEM768_CT_SIZE] = { 0 };
+  fips203_kem768_encaps(k0, ct, ek, ENCAPS_SEED);
+
+  // decapsulate key from ciphertext
+  uint8_t k1[32] = { 0 };
+  fips203_kem768_decaps(k1, ct, dk);
+
+  // compare keys
+  if (memcmp(k0, k1, sizeof(k0))) {
+    printf("test_fips203_kem768: k0 != k1:\nk0 = ");
+    hex_write(stdout, k0, sizeof(k0));
+    printf("\nk1 = ");
+    hex_write(stdout, k1, sizeof(k1));
+    printf("\n");
+    exit(-1);
+  }
+
+  printf("test_fips203_kem768: ok\n");
+}
+
 int main(int argc, char *argv[]) {
   (void) argc;
   (void) argv;
 
-  // generate encapsulation and decapsulation keys
+  // run tests
   test_fips203_kem512();
+  test_fips203_kem768();
 
   return 0;
 }

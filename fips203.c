@@ -2854,8 +2854,8 @@ static inline void poly_decode_1bit(poly_t * const p, const uint8_t b[static 32]
     } \
   } \
   \
-  /* multiple elements of vectors `a` and `b`, sum results, and store the results in `c`. */ \
-  static inline void vec ## N ## _mul(poly_t * const restrict c, const poly_t a[static N], const poly_t b[static N]) { \
+  /* Calculate dot product of vectors `a` and `b` and store result in polynomial `c`. */ \
+  static inline void vec ## N ## _dot(poly_t * const restrict c, const poly_t a[static N], const poly_t b[static N]) { \
     /* clear result */ \
     memset(c, 0, sizeof(poly_t)); \
     for (size_t i = 0; i < N; i++) { \
@@ -2995,7 +2995,7 @@ static inline void pke512_encrypt(uint8_t ct[static PKE512_CT_SIZE], const uint8
   poly_decode_1bit(&mu, m);
 
   poly_t v = { 0 };
-  vec2_mul(&v, t, r); // v = t * r
+  vec2_dot(&v, t, r); // v = t * r
   poly_inv_ntt(&v);   // v = InvNTT(v)
   poly_add(&v, &e2);  // v += e2
   poly_add(&v, &mu);  // v += mu
@@ -4401,7 +4401,7 @@ static void test_vec2_add(void) {
   }
 }
 
-static void test_vec2_mul(void) {
+static void test_vec2_dot(void) {
   static const struct {
     const char *name; // test name
     const poly_t a[2]; // test value a
@@ -4432,13 +4432,13 @@ static void test_vec2_mul(void) {
     vec2_ntt(b); // b = NTT(b)
 
     poly_t got = { 0 };
-    vec2_mul(&got, a, b); // got = a * b
+    vec2_dot(&got, a, b); // got = a * b
 
     poly_inv_ntt(&got); // got = invntt(got)
 
     // check for expected value
     if (memcmp(&got, &(TESTS[i].exp), sizeof(got))) {
-      fprintf(stderr, "test_vec2_mul(\"%s\") failed, got:\n", TESTS[i].name);
+      fprintf(stderr, "test_vec2_dot(\"%s\") failed, got:\n", TESTS[i].name);
       poly_write(stderr, &got);
       fprintf(stderr, "\nexp:\n");
       poly_write(stderr, &(TESTS[i].exp));
@@ -4500,7 +4500,7 @@ int main(void) {
   test_poly_decode_1bit();
   test_mat2_mul();
   test_vec2_add();
-  test_vec2_mul();
+  test_vec2_dot();
   test_vec2_ntt();
 }
 #endif // TEST_FIPS203

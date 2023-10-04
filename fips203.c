@@ -2945,13 +2945,13 @@ static inline void pke512_keygen(uint8_t ek[static PKE512_EK_SIZE], uint8_t dk[s
  * @param[in] m Input randomness seed (32 bytes).
  */
 static inline void pke512_encrypt(uint8_t ct[static PKE512_CT_SIZE], const uint8_t ek[static PKE512_EK_SIZE], const uint8_t m[static 32], const uint8_t enc_rand[static 32]) {
-  // decode t from ek
+  // decode t from first 768 bytes of ek
   poly_t t[PKE512_K] = { 0 };
   for (size_t i = 0; i < PKE512_K; i++) {
     poly_decode(t + i, ek + (384 * i));
   }
 
-  // decode rho from ek
+  // read rho from ek (32 bytes)
   const uint8_t * const rho = ek + 384 * PKE512_K;
 
   // sample A hat transposed matrix polynomial coefficients from T_q (NTT)
@@ -2982,7 +2982,7 @@ static inline void pke512_encrypt(uint8_t ct[static PKE512_CT_SIZE], const uint8
 
   poly_t u[PKE512_K] = { 0 };
   mat2_mul(u, a, r);  // u = (A*r)
-  vec2_inv_ntt(u);    // u = invntt(u)
+  vec2_inv_ntt(u);    // u = InvNTT(u)
   vec2_add(u, e1);    // u += e1
 
   // encode u, append to ct
@@ -3036,7 +3036,7 @@ static inline void pke512_decrypt(uint8_t m[static 32], const uint8_t dk[static 
     poly_mul(&tmp, s + i, u + i); // tmp = s[i] * u[i]
     poly_add(&su, &tmp);
   }
-  poly_inv_ntt(&su); // su = inverse NTT(su)
+  poly_inv_ntt(&su); // su = InvNTT(su)
 
   poly_t w = v;
   poly_sub(&w, &su); // w -= su
@@ -3168,7 +3168,7 @@ static void test_poly_ntt_roundtrip(void) {
     // copy poly
     poly_t got = TESTS[i].poly;
 
-    // calculate invntt(ntt(poly))
+    // calculate InvNTT(NTT(poly))
     poly_ntt(&got);
     poly_inv_ntt(&got);
 
@@ -3446,10 +3446,10 @@ static void test_poly_mul(void) {
   for (size_t i = 0; i < sizeof(TESTS)/sizeof(TESTS[0]); i++) {
     poly_t a = TESTS[i].a, b = TESTS[i].b, got = { 0 };
 
-    poly_ntt(&a); // a = ntt(a)
-    poly_ntt(&b); // b = ntt(b)
+    poly_ntt(&a); // a = NTT(a)
+    poly_ntt(&b); // b = NTT(b)
     poly_mul(&got, &a, &b); // got = a * b
-    poly_inv_ntt(&got); // a = invntt(a)
+    poly_inv_ntt(&got); // a = InvNTT(a)
 
     // check for expected value
     if (memcmp(&got, &TESTS[i].exp, sizeof(poly_t))) {
@@ -4349,7 +4349,7 @@ static void test_mat2_mul(void) {
 
     poly_t got[2] = { 0 };
     mat2_mul(got, mat, vec); // got = mat * vec
-    vec2_inv_ntt(got); // got = invntt(got)
+    vec2_inv_ntt(got); // got = InvNTT(got)
 
     // check for expected value
     if (memcmp(got, TESTS[i].exp, sizeof(got))) {
@@ -4433,8 +4433,7 @@ static void test_vec2_dot(void) {
 
     poly_t got = { 0 };
     vec2_dot(&got, a, b); // got = a * b
-
-    poly_inv_ntt(&got); // got = invntt(got)
+    poly_inv_ntt(&got); // got = InvNTT(got)
 
     // check for expected value
     if (memcmp(&got, &(TESTS[i].exp), sizeof(got))) {

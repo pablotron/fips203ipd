@@ -2896,20 +2896,18 @@ static inline void pke512_keygen(uint8_t ek[static PKE512_EK_SIZE], uint8_t dk[s
   sha3_512(seed, 32, rs); // rho, sigma = sha3-512(seed)
   const uint8_t * const sigma = rs + 32; // sigma
 
-  // populate A hat
+  // sample A hat matrix polynomial coefficients from T_q (NTT)
   poly_t a[PKE512_K * PKE512_K] = { 0 };
   for (size_t i = 0; i < PKE512_K; i++) {
     for (size_t j = 0; j < PKE512_K; j++) {
-      // sample polynomial
       poly_sample_ntt(a + (PKE512_K * i + j), rs, i, j);
     }
   }
 
-  // sample s and e coefficients from CBD
+  // sample poly coefs for vectors s and e from CBD(3) (PKE512_ETA1)
   // (note: sampling is done in R_q, not in NTT domain)
   poly_t se[2 * PKE512_K] = { 0 }; // s = se[0, k], e = se[k, 2k-1]
   for (size_t i = 0; i < 2 * PKE512_K; i++) {
-    // sample polynomial coefficients from CBD(3) (PKE512_ETA1)
     poly_sample_cbd3(se + i, sigma, i);
   }
 
@@ -2936,6 +2934,16 @@ static inline void pke512_keygen(uint8_t ek[static PKE512_EK_SIZE], uint8_t dk[s
   }
 }
 
+/**
+ * Encrypt 32-byte message `m` using PKE512 encryption key `ek` and
+ * randomness `enc_rand` and store the PKE512 ciphertext in output
+ * buffer `ct`.
+ *
+ * @param[out] ct Output PKE512 ciphertext buffer (768 bytes).
+ * @param[in] ek PKE512 encryption key (800 bytes).
+ * @param[in] m Plaintext message (32 bytes).
+ * @param[in] m Input randomness seed (32 bytes).
+ */
 static inline void pke512_encrypt(uint8_t ct[static PKE512_CT_SIZE], const uint8_t ek[static PKE512_EK_SIZE], const uint8_t m[static 32], const uint8_t enc_rand[static 32]) {
   // decode t from ek
   poly_t t[PKE512_K] = { 0 };
@@ -2946,11 +2954,11 @@ static inline void pke512_encrypt(uint8_t ct[static PKE512_CT_SIZE], const uint8
   // decode rho from ek
   const uint8_t * const rho = ek + 384 * PKE512_K;
 
-  // populate A hat (transposed)
+  // sample A hat transposed matrix polynomial coefficients from T_q (NTT)
+  // (note: i and j transposed vs `pke512_keygen()`)
   poly_t a[PKE512_K * PKE512_K] = { 0 };
   for (size_t i = 0; i < PKE512_K; i++) {
     for (size_t j = 0; j < PKE512_K; j++) {
-      // sample polynomial (with i and j transposed)
       poly_sample_ntt(a + (PKE512_K * i + j), rho, j, i);
     }
   }
@@ -2983,7 +2991,7 @@ static inline void pke512_encrypt(uint8_t ct[static PKE512_CT_SIZE], const uint8
   }
 
   // decode and decompress message into polynomial
-  poly_t mu;
+  poly_t mu = { 0 };
   poly_decode_1bit(&mu, m);
 
   poly_t v = { 0 };
@@ -2996,6 +3004,14 @@ static inline void pke512_encrypt(uint8_t ct[static PKE512_CT_SIZE], const uint8
   poly_encode_4bit(ct + 320 * PKE512_K, &v);
 }
 
+/**
+ * Decrypt 32-byte plaintext message from PKE512 ciphertext `ct` using
+ * PKE512 decryption key `dk` and store the result in output buffer `m`.
+ *
+ * @param[out] m Output plaintext message (32 bytes).
+ * @param[in] dk PKE512 decryption key (800 bytes).
+ * @param[in] ct Input ciphertext buffer (768 bytes).
+ */
 static inline void pke512_decrypt(uint8_t m[static 32], const uint8_t dk[static PKE512_DK_SIZE], const uint8_t ct[PKE512_CT_SIZE]) {
   // decode u
   poly_t u[PKE512_K] = { 0 };

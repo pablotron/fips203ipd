@@ -4431,6 +4431,41 @@ static void test_vec2_mul(void) {
   }
 }
 
+static void test_vec2_ntt(void) {
+  static const struct {
+    const char *name; // test name
+    const poly_t exp[2]; // expected value
+  } TESTS[] = {{
+    .name = "[1, x]^T",
+    .exp = {
+      { .cs = { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
+      { .cs = { 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    },
+  }, {
+    .name = "[x^2, x^3]^T",
+    .exp = {
+      { .cs = { 0, 0, 1, 0, 0, 0, 0, 0, 0, 0 } },
+      { .cs = { 0, 0, 0, 1, 0, 0, 0, 0, 0, 0 } },
+    },
+  }};
+
+  for (size_t i = 0; i < sizeof(TESTS)/sizeof(TESTS[0]); i++) {
+    poly_t got[2] = { 0 };
+    memcpy(got, TESTS[i].exp, sizeof(got));
+    vec2_ntt(got); // got = NTT(exp)
+    vec2_inv_ntt(got); // got = InvNTT(got)
+
+    // check for expected value
+    if (memcmp(&got, &(TESTS[i].exp), sizeof(got))) {
+      fprintf(stderr, "test_vec2_ntt(\"%s\") failed, got:\n", TESTS[i].name);
+      vec2_write(stderr, "got", got);
+      fprintf(stderr, "\nexp:\n");
+      vec2_write(stderr, "exp", TESTS[i].exp);
+      fputs("\n", stderr);
+    }
+  }
+}
+
 int main(void) {
   test_poly_ntt_roundtrip();
   test_poly_sample_ntt();
@@ -4450,5 +4485,6 @@ int main(void) {
   test_mat2_mul();
   test_vec2_add();
   test_vec2_mul();
+  test_vec2_ntt();
 }
 #endif // TEST_FIPS203

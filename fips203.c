@@ -2835,7 +2835,7 @@ static inline void poly_decode_1bit(poly_t * const p, const uint8_t b[static 32]
   /* polynomials in `vec` and store the product in vector `out`. */ \
   static inline void mat ## N ## _mul(poly_t out[static N], const poly_t mat[static N*N], const poly_t vec[static N]) { \
     /* clear result */ \
-    memset(out, 0, sizeof(N * sizeof(poly_t))); \
+    memset(out, 0, N * sizeof(poly_t)); \
     for (size_t y = 0; y < N; y++) { \
       for (size_t x = 0; x < N; x++) { \
         poly_t prod = { 0 }; \
@@ -2855,15 +2855,28 @@ static inline void poly_decode_1bit(poly_t * const p, const uint8_t b[static 32]
   /* multiple elements of vectors `a` and `b`, sum results, and store the results in `c`. */ \
   static inline void vec ## N ## _mul(poly_t * const restrict c, const poly_t a[static N], const poly_t b[static N]) { \
     /* clear result */ \
-    memset(c, 0, sizeof(sizeof(poly_t))); \
+    memset(c, 0, sizeof(poly_t)); \
     for (size_t i = 0; i < N; i++) { \
       poly_t prod = { 0 }; \
       poly_mul(&prod, a + i, b + i); \
       poly_add(c, &prod); \
     } \
+  } \
+  /* apply NTT to vector */ \
+  static inline void vec ## N ## _ntt(poly_t vec[static 2]) { \
+    for (size_t i = 0; i < N; i++) { \
+      poly_ntt(vec + i); \
+    } \
+  } \
+  \
+  /* apply inverse NTT to vector */ \
+  static inline void vec ## N ## _inv_ntt(poly_t vec[static N]) { \
+    for (size_t i = 0; i < N; i++) { \
+      poly_inv_ntt(vec + i); \
+    } \
   }
 
-// define mat3 and vec2 functions
+// define mat2 and vec2 functions
 DEFINE_MAT_VEC_OPS(2)
 
 /**
@@ -2895,10 +2908,11 @@ static inline void pke512_keygen(uint8_t ek[static PKE512_EK_SIZE], uint8_t dk[s
   for (size_t i = 0; i < 2 * PKE512_K; i++) {
     // sample polynomial coefficients from CBD(3) (PKE512_ETA1)
     poly_sample_cbd3(se + i, sigma, i);
-
-    // apply NTT to polynomial coefficients (R_q -> T_q)
-    poly_ntt(se + i);
   }
+
+  // apply NTT to polynomial coefficients (R_q -> T_q)
+  vec2_ntt(se);
+  vec2_ntt(se + PKE512_K);
 
   // t = As + e (NTT)
   poly_t t[PKE512_K] = { 0 }, *s = se, *e = se + PKE512_K;
@@ -2943,10 +2957,8 @@ static inline void pke512_encrypt(uint8_t ct[static PKE512_CT_SIZE], const uint8
   for (size_t i = 0; i < PKE512_K; i++) {
     // sample polynomial coefficients from CBD(3) (PKE512_ETA1)
     poly_sample_cbd3(r + i, enc_rand, i);
-
-    // apply NTT to polynomial coefficients (R_q -> T_q)
-    poly_ntt(r + i);
   }
+  vec2_ntt(r); // r = NTT(r)
 
   // populate e1 vector (not in NTT)
   poly_t e1[PKE512_K] = { 0 };
@@ -2964,9 +2976,7 @@ static inline void pke512_encrypt(uint8_t ct[static PKE512_CT_SIZE], const uint8
   mat2_mul(u, a, r);
 
   // u = inverse NTT(u)
-  for (size_t i = 0; i < PKE512_K; i++) {
-    poly_inv_ntt(u + i);
-  }
+  vec2_inv_ntt(u);
 
   // u += e1
   vec2_add(u, e1);

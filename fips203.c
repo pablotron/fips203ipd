@@ -2886,9 +2886,9 @@ DEFINE_MAT_VEC_OPS(2)
  * Generate PKE512 encryption and decryption key from given 32-byte
  * seed.
  *
- * @param[out] ek PKE512 encryption key.
- * @param[out] dk PKE512 decryption key.
- * @param[in] seed Input 32-byte seed.
+ * @param[out] ek PKE512 encryption key (800 bytes).
+ * @param[out] dk PKE512 decryption key (768 bytes).
+ * @param[in] seed Random seed (32 bytes).
  */
 static inline void pke512_keygen(uint8_t ek[static PKE512_EK_SIZE], uint8_t dk[static PKE512_DK_SIZE], const uint8_t seed[static 32]) {
   // get sha3-512 hash of seed, get rho and sigma (each 32 bytes)

@@ -3045,14 +3045,22 @@ static inline void pke512_decrypt(uint8_t m[static 32], const uint8_t dk[static 
   poly_encode_1bit(m, &w);
 }
 
+/**
+ * Generate KEM512 encryption and decryption key from given 64 byte
+ * random seed.
+ *
+ * @param[out] ek KEM512 encryption key (800 bytes).
+ * @param[out] dk PKE512 decryption key (1632 bytes).
+ * @param[in] seed Random seed (64 bytes).
+ */
 void fips203_kem512_keygen(uint8_t ek[static FIPS203_KEM512_EK_SIZE], uint8_t dk[static FIPS203_KEM512_DK_SIZE], const uint8_t seed[static 64]) {
-  const uint8_t * const z = seed; // implicit rejection seed (32 random bytes)
+  const uint8_t * const z = seed; // random implicit rejection seed (32 bytes)
+  const uint8_t * const d = seed + 32; // pke512_keygen() random seed (32 bytes)
 
   // generate ek and dk
-  const uint8_t * const d = seed + 32; // pke512_keygen() seed (32 random bytes)
   pke512_keygen(ek, dk, d);
 
-  // KEM: populate dk with ek, sha3-256(ek), and z
+  // KEM: append ek, sha3-256(ek), and z to dk
   memcpy(dk + PKE512_DK_SIZE, ek, PKE512_EK_SIZE);
   sha3_256(ek, PKE512_EK_SIZE, dk + PKE512_DK_SIZE + PKE512_EK_SIZE);
   memcpy(dk + PKE512_DK_SIZE + PKE512_EK_SIZE + 32, z, 32);

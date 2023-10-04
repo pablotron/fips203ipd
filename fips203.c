@@ -3088,17 +3088,22 @@ void fips203_kem512_encaps(uint8_t k[static 32], uint8_t ct[static FIPS203_KEM51
   pke512_encrypt(ct, ek, seed, r); // ct <- pke.encrypt(ek, seed, r)
 }
 
-// Decapsulate shared key `k` from ciphertext `ct` using KEM decryption
-// key `dk_kem` with implicit rejection.
+/**
+ * Decapsulate shared key `k` from ciphertext `ct` using KEM512
+ * decapsulation key `dk_kem` with implicit rejection.
+ *
+ * @param[out] k Shared key (32 bytes).
+ * @param[out] ct Ciphertext (768 bytes).
+ * @param[in] dk_kem KEM512 decapsulation key (1632 bytes).
+ */
 void fips203_kem512_decaps(uint8_t k[static 32], const uint8_t ct[static FIPS203_KEM512_CT_SIZE], const uint8_t dk_kem[static FIPS203_KEM512_DK_SIZE]) {
   const uint8_t * const dk_pke = dk_kem;
   const uint8_t * const ek_pke = dk_kem + 384 * PKE512_K;
   const uint8_t * const h = dk_kem + (2 * 384 * PKE512_K + 32);
   const uint8_t * const z = dk_kem + (2 * 384 * PKE512_K + 64);
 
-  // decrypt m
   uint8_t mh[64] = { 0 };
-  pke512_decrypt(mh, dk_pke, ct);
+  pke512_decrypt(mh, dk_pke, ct); // decrypt ct into mh
   memcpy(mh + 32, h, 32); // copy hash
 
   uint8_t kr[64] = { 0 };
@@ -3113,9 +3118,15 @@ void fips203_kem512_decaps(uint8_t k[static 32], const uint8_t ct[static FIPS203
   uint8_t k_rej[32] = { 0 };
   shake256(zc, sizeof(zc), k_rej); // K_rej = J(z||c)
 
+  // re-encrypt `k` with PKE512 key `ek_pke`
+  // (ct2 is used for implicit rejection check below)
   uint8_t ct2[PKE512_CT_SIZE] = { 0 };
   pke512_encrypt(ct2, ek_pke, mh, kr + 32); // ct2 <- pke.encrypt(ek, m', r')
 
+  // compare ct and ct2 using constant-time comparison.  if they match,
+  // then copy decapsulated key to output buffer `k`.  if `ct` and `ct2`
+  // don't match, then copy the implicit rejection key `k_rej` to the
+  // output buffer `k`.
   ct_copy(k, ct_diff(ct, ct2, PKE512_CT_SIZE), kr, k_rej);
 }
 

@@ -2942,7 +2942,7 @@ static inline void pke512_keygen(uint8_t ek[static PKE512_EK_SIZE], uint8_t dk[s
  * @param[out] ct Output PKE512 ciphertext buffer (768 bytes).
  * @param[in] ek PKE512 encryption key (800 bytes).
  * @param[in] m Plaintext message (32 bytes).
- * @param[in] m Input randomness seed (32 bytes).
+ * @param[in] enc_rand Randomness seed (32 bytes).
  */
 static inline void pke512_encrypt(uint8_t ct[static PKE512_CT_SIZE], const uint8_t ek[static PKE512_EK_SIZE], const uint8_t m[static 32], const uint8_t enc_rand[static 32]) {
   // decode t from first 768 bytes of ek
@@ -2955,7 +2955,7 @@ static inline void pke512_encrypt(uint8_t ct[static PKE512_CT_SIZE], const uint8
   const uint8_t * const rho = ek + 384 * PKE512_K;
 
   // sample A hat transposed matrix polynomial coefficients from T_q (NTT)
-  // (note: i and j transposed vs `pke512_keygen()`)
+  // (note: i and j are positions are swapped vs `pke512_keygen()`)
   poly_t a[PKE512_K * PKE512_K] = { 0 };
   for (size_t i = 0; i < PKE512_K; i++) {
     for (size_t j = 0; j < PKE512_K; j++) {

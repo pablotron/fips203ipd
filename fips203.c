@@ -2990,7 +2990,11 @@ static inline void pke512_encrypt(uint8_t ct[static PKE512_CT_SIZE], const uint8
     poly_encode_10bit(ct + 320 * i, u + i);
   }
 
-  // decode and decompress message into polynomial
+  // decode message `m` into polynomial `mu`
+  //
+  // each bit of message `m` set to 1 is decoded as a coefficient of
+  // value 1665 in polynomial `mu`, and each bit set to 0 is decoded as
+  // a coefficient of value 0 in polynomial `mu`.
   poly_t mu = { 0 };
   poly_decode_1bit(&mu, m);
 
@@ -3030,12 +3034,8 @@ static inline void pke512_decrypt(uint8_t m[static 32], const uint8_t dk[static 
   }
 
   poly_t su = { 0 }; // su = s * u
-  for (size_t i = 0; i < PKE512_K; i++) {
-    poly_t tmp = { 0 };
-    poly_ntt(u + i); // u[i] = NTT(u[i])
-    poly_mul(&tmp, s + i, u + i); // tmp = s[i] * u[i]
-    poly_add(&su, &tmp);
-  }
+  vec2_ntt(u); // u = NTT(u)
+  vec2_dot(&su, s, u); // su = s * u
   poly_inv_ntt(&su); // su = InvNTT(su)
 
   poly_t w = v;

@@ -6625,6 +6625,133 @@ static void test_mat3_mul(void) {
   }
 }
 
+static void test_vec3_add(void) {
+  static const struct {
+    const char *name; // test name
+    const poly_t a[3]; // test value a
+    const poly_t b[3]; // test value b
+    const poly_t exp[3]; // expected value
+  } TESTS[] = {{
+    .name = "[1, x, x^2]^T + [x^3, x^4, x^5]^T = [1 + x^3, x + x^4, x^2 + x^5]^T",
+    .a = {
+      { .cs = { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
+      { .cs = { 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 } },
+      { .cs = { 0, 0, 1, 0, 0, 0, 0, 0, 0, 0 } },
+    },
+
+    .b = {
+      { .cs = { 0, 0, 0, 1, 0, 0, 0, 0, 0, 0 } },
+      { .cs = { 0, 0, 0, 0, 1, 0, 0, 0, 0, 0 } },
+      { .cs = { 0, 0, 0, 0, 0, 1, 0, 0, 0, 0 } },
+    },
+
+    .exp = {
+      { .cs = { 1, 0, 0, 1, 0, 0, 0, 0, 0, 0 } },
+      { .cs = { 0, 1, 0, 0, 1, 0, 0, 0, 0, 0 } },
+      { .cs = { 0, 0, 1, 0, 0, 1, 0, 0, 0, 0 } },
+    },
+  }};
+
+  for (size_t i = 0; i < sizeof(TESTS)/sizeof(TESTS[0]); i++) {
+    poly_t got[3] = { 0 };
+    memcpy(got, TESTS[i].a, sizeof(got)); // got = a
+
+    vec3_add(got, TESTS[i].b); // got += b
+
+    // check for expected value
+    if (memcmp(got, TESTS[i].exp, sizeof(got))) {
+      fprintf(stderr, "test_vec3_add(\"%s\") failed, got:\n", TESTS[i].name);
+      vec2_write(stderr, "got", got);
+      fprintf(stderr, "exp:\n");
+      vec2_write(stderr, "exp", TESTS[i].exp);
+    }
+  }
+}
+
+static void test_vec3_dot(void) {
+  static const struct {
+    const char *name; // test name
+    const poly_t a[3]; // test value a
+    const poly_t b[3]; // test value b
+    const poly_t exp; // expected value
+  } TESTS[] = {{
+    .name = "[1, x, x^2] * [x^3, x^4, x^5]^T = (x^3 + x^5 + x^7)",
+    .a = {
+      { .cs = { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
+      { .cs = { 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 } },
+      { .cs = { 0, 0, 1, 0, 0, 0, 0, 0, 0, 0 } },
+    },
+
+    .b = {
+      { .cs = { 0, 0, 0, 1, 0, 0, 0, 0, 0, 0 } },
+      { .cs = { 0, 0, 0, 0, 1, 0, 0, 0, 0, 0 } },
+      { .cs = { 0, 0, 0, 0, 0, 1, 0, 0, 0, 0 } },
+    },
+
+    .exp = { .cs = { 0, 0, 0, 1, 0, 1, 0, 1, 0, 0 } },
+  }};
+
+  for (size_t i = 0; i < sizeof(TESTS)/sizeof(TESTS[0]); i++) {
+    poly_t a[3], b[3];
+
+    memcpy(a, TESTS[i].a, sizeof(a));
+    vec3_ntt(a); // a = NTT(a)
+
+    memcpy(b, TESTS[i].b, sizeof(b));
+    vec3_ntt(b); // b = NTT(b)
+
+    poly_t got = { 0 };
+    vec3_dot(&got, a, b); // got = a * b
+    poly_inv_ntt(&got); // got = InvNTT(got)
+
+    // check for expected value
+    if (memcmp(&got, &(TESTS[i].exp), sizeof(got))) {
+      fprintf(stderr, "test_vec3_dot(\"%s\") failed, got:\n", TESTS[i].name);
+      poly_write(stderr, &got);
+      fprintf(stderr, "\nexp:\n");
+      poly_write(stderr, &(TESTS[i].exp));
+      fputs("\n", stderr);
+    }
+  }
+}
+
+static void test_vec3_ntt(void) {
+  static const struct {
+    const char *name; // test name
+    const poly_t exp[3]; // expected value
+  } TESTS[] = {{
+    .name = "[1, x, x^2]^T",
+    .exp = {
+      { .cs = { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
+      { .cs = { 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 } },
+      { .cs = { 0, 0, 1, 0, 0, 0, 0, 0, 0, 0 } },
+    },
+  }, {
+    .name = "[x^3, x^4, x^5]^T",
+    .exp = {
+      { .cs = { 0, 0, 0, 1, 0, 0, 0, 0, 0, 0 } },
+      { .cs = { 0, 0, 0, 0, 1, 0, 0, 0, 0, 0 } },
+      { .cs = { 0, 0, 0, 0, 0, 1, 0, 0, 0, 0 } },
+    },
+  }};
+
+  for (size_t i = 0; i < sizeof(TESTS)/sizeof(TESTS[0]); i++) {
+    poly_t got[3] = { 0 };
+    memcpy(got, TESTS[i].exp, sizeof(got));
+    vec3_ntt(got); // got = NTT(exp)
+    vec3_inv_ntt(got); // got = InvNTT(got)
+
+    // check for expected value
+    if (memcmp(&got, &(TESTS[i].exp), sizeof(got))) {
+      fprintf(stderr, "test_vec3_ntt(\"%s\") failed, got:\n", TESTS[i].name);
+      vec2_write(stderr, "got", got);
+      fprintf(stderr, "\nexp:\n");
+      vec2_write(stderr, "exp", TESTS[i].exp);
+      fputs("\n", stderr);
+    }
+  }
+}
+
 int main(void) {
   test_poly_ntt_roundtrip();
   test_poly_sample_ntt();
@@ -6652,5 +6779,8 @@ int main(void) {
   test_fips203_kem512_encaps();
   test_fips203_kem512_decaps();
   test_mat3_mul();
+  test_vec3_add();
+  test_vec3_dot();
+  test_vec3_ntt();
 }
 #endif // TEST_FIPS203

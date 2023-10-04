@@ -4309,39 +4309,26 @@ static void test_mat2_mul(void) {
   }};
 
   for (size_t i = 0; i < sizeof(TESTS)/sizeof(TESTS[0]); i++) {
-    // populate matrix, convert to NTT
+    // populate matrix, apply NTT
     poly_t mat[4] = { 0 };
     memcpy(mat, TESTS[i].mat, sizeof(mat));
-    for (size_t j = 0; j < sizeof(mat) / sizeof(mat[0]); j++) {
-      poly_ntt(mat + j);
-    }
+    mat2_ntt(mat);
 
-    // populate vector, convert to NTT
+    // populate vector, apply NTT
     poly_t vec[2] = { 0 };
-    for (size_t j = 0; j < sizeof(vec) / sizeof(vec[0]); j++) {
-      poly_ntt(vec + j);
-    }
+    memcpy(vec, TESTS[i].vec, sizeof(vec));
+    vec2_ntt(vec);
 
-    // right-multiply matrix and vector
     poly_t got[2] = { 0 };
-    mat2_mul(got, TESTS[i].mat, TESTS[i].vec);
-
-    // apply inverse NTT
-    for (size_t j = 0; j < sizeof(got) / sizeof(got[0]); j++) {
-      poly_inv_ntt(vec + j);
-    }
+    mat2_mul(got, mat, vec); // got = mat * vec
+    vec2_inv_ntt(got); // got = invntt(got)
 
     // check for expected value
-    if (memcmp(&got, &(TESTS[i].exp), sizeof(got))) {
-      fprintf(stderr, "test_poly_encode_1bit(\"%s\") failed, got:\n0 = ", TESTS[i].name);
-      poly_write(stderr, got);
-      fprintf(stderr, "\n1 = ");
-      poly_write(stderr, got + 1);
-      fprintf(stderr, "\nexp:\n0 = ");
-      poly_write(stderr, TESTS[i].exp);
-      fprintf(stderr, "\n1 = ");
-      poly_write(stderr, TESTS[i].exp + 1);
-      fprintf(stderr, "\n");
+    if (memcmp(got, TESTS[i].exp, sizeof(got))) {
+      fprintf(stderr, "test_mat2_mul(\"%s\") failed, got:\n", TESTS[i].name);
+      vec2_write(stderr, "got", got);
+      fprintf(stderr, "exp:\n");
+      vec2_write(stderr, "exp", TESTS[i].exp);
     }
   }
 }

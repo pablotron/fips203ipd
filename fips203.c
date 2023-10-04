@@ -3060,11 +3060,11 @@ static inline void pke512_decrypt(uint8_t m[static 32], const uint8_t dk[static 
 }
 
 /**
- * Generate KEM512 encryption and decryption key from given 64 byte
+ * Generate KEM512 encapsulation and decapsulation key from given 64 byte
  * random seed.
  *
- * @param[out] ek KEM512 encryption key (800 bytes).
- * @param[out] dk PKE512 decryption key (1632 bytes).
+ * @param[out] ek KEM512 encapsulation key (800 bytes).
+ * @param[out] dk KEM512 decapsulation key (1632 bytes).
  * @param[in] seed Random seed (64 bytes).
  */
 void fips203_kem512_keygen(uint8_t ek[static FIPS203_KEM512_EK_SIZE], uint8_t dk[static FIPS203_KEM512_DK_SIZE], const uint8_t seed[static 64]) {

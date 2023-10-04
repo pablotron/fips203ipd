@@ -4635,7 +4635,7 @@ static void test_pke512_keygen(void) {
 
     // check for expected ek
     if (memcmp(&got_ek, &(TESTS[i].exp_ek), sizeof(got_ek))) {
-      fprintf(stderr, "test_vec2_ntt(\"%s\") ek check failed, got ek:\n", TESTS[i].name);
+      fprintf(stderr, "test_pke512_keygen(\"%s\") ek check failed, got ek:\n", TESTS[i].name);
       hex_write(stderr, got_ek, sizeof(got_ek));
       fprintf(stderr, "\nexp ek:\n");
       hex_write(stderr, TESTS[i].exp_ek, sizeof(got_ek));
@@ -4644,7 +4644,7 @@ static void test_pke512_keygen(void) {
 
     // check for expected dk
     if (memcmp(&got_dk, &(TESTS[i].exp_dk), sizeof(got_dk))) {
-      fprintf(stderr, "test_vec2_ntt(\"%s\") dk check failed, got dk:\n", TESTS[i].name);
+      fprintf(stderr, "test_pke512_keygen(\"%s\") dk check failed, got dk:\n", TESTS[i].name);
       hex_write(stderr, got_dk, sizeof(got_dk));
       fprintf(stderr, "\nexp dk:\n");
       hex_write(stderr, TESTS[i].exp_dk, sizeof(got_dk));

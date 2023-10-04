@@ -298,265 +298,8 @@ static const uint16_t MUL_LUT[] = {
   1175, // n = 127, 2*bitrev(127)+1 = 255, (17**255)%3329) = 1175
 };
 
-/**
- * Initialize SHAKE128 extendable output function (XOF) by absorbing
- * 32-byte value `r`, byte `i`, and byte `j`.
- *
- * Used by `poly_sample_ntt()` to sample polynomail coefficients.
- *
- * @param[out] xof SHAKE128 XOF context.
- * @param[in] r Input 32-byte value.
- * @param[in] i Input byte.
- * @param[in] j Input byte.
- */
-static inline void xof_init(sha3_xof_t * const xof, const uint8_t r[static 32], const uint8_t i, const uint8_t j) {
-  // init shake128 xof
-  shake128_xof_init(xof);
-
-  // absorb rho
-  shake128_xof_absorb(xof, r, 32);
-
-  // absorb i and j
-  const uint8_t ij[2] = { i, j };
-  shake128_xof_absorb(xof, ij, 2);
-}
-
-/**
- * Initialize SHAKE256 XOF as a pseudo-random function (PRF) by
- * absorbing 32-byte `seed` and byte `b`, then read `len` bytes of data
- * from the PRF into the buffer pointed to by `out`.
- *
- * Used by `poly_sample_cbdN()` functions to sample polynomail
- * coefficients.
- *
- * @param[in] seed 32 bytes.
- * @param[in] b 1 byte.
- * @param[out] out Output buffer of length `len`.
- * @param[in] len Output buffer length.
- */
-static inline void prf(const uint8_t seed[static 32], const uint8_t b, uint8_t * const out, const size_t len) {
-  // populate `buf` with `seed` and byte `b`
-  uint8_t buf[33] = { 0 };
-  memcpy(buf, seed, 32);
-  buf[32] = b;
-
-  // absorb `buf` into SHAKE256 XOF, write `len` bytes to `out`
-  shake256_xof_once(buf, sizeof(buf), out, len);
-}
-
-/**
- * Constant-time difference.  Returns true if `a` and `b` differ and
- * false they are the identical.
- *
- * Used by `fips203_kem512_decaps()`.
- *
- * @param[in] a Input value of length `len`.
- * @param[in] b Input value of length `len`.
- * @param[in] len Length of input values, in bytes.
- *
- * @return true if `a` and `b differ, and false if they are identical.
- */
-static inline bool ct_diff(const uint8_t * const restrict a, const uint8_t * const restrict b, const size_t len) {
-  uint8_t r = 0;
-  for (size_t i = 0; i < len; i++) {
-    r |= (a[i] ^ b[i]);
-  }
-
-  return r == 0;
-}
-
-/**
- * Constant-time copy. Copy `a` to `c` if `sel is `false` or copy `b` to
- * `c` if `sel` is `true`.
- *
- * Used by `fips203_kem512_decaps()`.
- *
- * @param[out] c 32-byte output buffer.
- * @param[in] sel Selection condition.
- * @param[in] a 32-byte input value.
- * @param[in] b 32-byte input value.
- */
-static inline void ct_copy(uint8_t c[static 32], const bool sel, const uint8_t a[static 32], const uint8_t b[static 32]) {
-  const uint8_t mask = sel ? 0xff : 0x00;
-  for (size_t i = 0; i < 32; i++) {
-    c[i] = (a[i] & mask) ^ (b[i] & ~mask);
-  }
-}
-
-// Polynomial with 256 12-bit coefficients.
-typedef struct {
-  uint16_t cs[256]; // coefficients
-} poly_t;
-
-/**
- * Initialize polynomial `a` by sampling coefficients in the NTT domain
- * from SHAKE128 extendable output function (XOF) seeded by 32-byte
- * value `rho`, byte `i`, and byte `j`.
- *
- * @param[out] a Output polynomial with coefficients in the NTT domain.
- * @param[in] rho 32-byte input value used as XOF seed.
- * @param[in] i One byte input value used as XOF seed.
- * @param[in] j One byte input value used as XOF seed.
- */
-static inline void poly_sample_ntt(poly_t * const a, const uint8_t rho[static 32], const uint8_t i, const uint8_t j) {
-  // init xof by absorbing rho, i, and j
-  sha3_xof_t xof = { 0 };
-  xof_init(&xof, rho, i, j);
-
-  for (size_t i = 0; i < 256;) {
-    // read 3 bytes from xof
-    uint8_t ds[3] = { 0 };
-    shake128_xof_squeeze(&xof, ds, 3);
-
-    // split 3 bytes into two 12-bit samples
-    const uint16_t d1 = ((uint16_t) ds[0]) | (((uint16_t) (ds[1] & 0xF)) << 8),
-                   d2 = ((uint16_t) ds[1] >> 4) | (((uint16_t) ds[2]) << 4);
-
-    // sample d1
-    if (d1 < Q) {
-      a->cs[i++] = d1;
-    }
-
-    // sample d2
-    if (d2 < Q && i < 256) {
-      a->cs[i++] = d2;
-    }
-  }
-}
-
-/**
- * Define function which reads `64 * ETA` bytes from a pseudo-random
- * function (PRF) seeded by 32-byte value `seed` and one byte value `b`,
- * then samples values from the PRF output using the centered binomial
- * distribution (CBD) with error `ETA` and writes the values as the
- * coefficients of output polynomial `p`.
- *
- * @param[out] p Output polynomial with CBD(ETA) distributed coefficients.
- * @param[in] seed 32-byte input value used as PRF seed.
- * @param[in] b 1 byte input value used as PRF seed.
- */
-#define DEF_POLY_SAMPLE_CBD(ETA) \
-  static inline void poly_sample_cbd ## ETA (poly_t * const p, const uint8_t seed[32], const uint8_t b) { \
-    /* read 64 * eta bytes of data from prf */ \
-    uint8_t buf[64 * ETA] = { 0 }; \
-    prf(seed, b, buf, sizeof(buf)); \
-    \
-    for (size_t i = 0; i < 256; i++) { \
-      uint16_t x = 0; \
-      for (size_t j = 0; j < ETA; j++) { \
-        const size_t ofs = 2 * i * ETA + j; \
-        x += (buf[ofs / 8] >> (ofs % 8)) & 0x01; \
-      } \
-      \
-      uint16_t y = 0; \
-      for (size_t j = 0; j < ETA; j++) { \
-        const size_t ofs = 2 * i * ETA + ETA + j; \
-        y += (buf[ofs / 8] >> (ofs % 8)) & 0x01; \
-      } \
-      \
-      p->cs[i] = (x + (Q - y)) % Q; /* (x - y) % Q */ \
-    } \
-  }
-
-// define poly_sample_cbd3() (PKE512_ETA1 = 3)
-DEF_POLY_SAMPLE_CBD(3)
-
-// define poly_sample_cbd2() (PKE512_ETA2 = 2)
-DEF_POLY_SAMPLE_CBD(2)
-
-/**
- * Compute in-place number-theoretic transform (NTT) of polynomial `p`.
- *
- * @param[in/out] p Polynomial.
- */
-static inline void poly_ntt(poly_t * const p) {
-  uint8_t k = 1;
-  for (uint16_t len = 128; len >= 2; len /= 2) {
-    for (uint16_t start = 0; start < 256; start += 2 * len) {
-      const uint16_t zeta = NTT_LUT[k++];
-
-      for (uint16_t j = start; j < start + len; j++) {
-        const uint16_t t = (zeta * p->cs[j + len]) % Q;
-        p->cs[j + len] = (p->cs[j] + (Q - t)) % Q; // (p[j] - t) % Q
-        p->cs[j] = (p->cs[j] + t) % Q;
-      }
-    }
-  }
-}
-
-/**
- * Compute in-place inverse number-theoretic transform (NTT) of
- * polynomial `p`.
- *
- * @param[in/out] p Polynomial.
- */
-static inline void poly_inv_ntt(poly_t * const p) {
-  uint8_t k = 127;
-  for (uint16_t len = 2; len <= 128; len *= 2) {
-    for (uint16_t start = 0; start < 256; start += 2 * len) {
-      const uint16_t zeta = NTT_LUT[k--];
-
-      for (uint16_t j = start; j < start + len; j++) {
-        const uint16_t t = p->cs[j];
-        p->cs[j] = (t + p->cs[j + len]) % Q; // (t + p[j + len]) % Q
-        p->cs[j + len] = (zeta * ((p->cs[j + len] + (Q - t)))) % Q;
-      }
-    }
-  }
-
-  for (size_t i = 0; i < 256; i++) {
-    p->cs[i] = ((uint32_t) p->cs[i] * 3303) % Q;
-  }
-}
-
-/**
- * Add polynomial `a` to polynomial `b` component-wise, and store the
- * sum in `a`.
- *
- * @param[in/out] a Polynomial.
- * @param[in] b Polynomial.
- */
-static inline void poly_add(poly_t * const restrict a, const poly_t * const restrict b) {
-  for (size_t i = 0; i < 256; i++) {
-    a->cs[i] = ((uint32_t) a->cs[i] + (uint32_t) b->cs[i]) % Q;
-  }
-}
-
-/**
- * Subtract polynomial `b` from polynomial `a` component-wise, and store the
- * result in `a`.
- *
- * @param[in/out] a Polynomial.
- * @param[in] b Polynomial.
- */
-static inline void poly_sub(poly_t * const restrict a, const poly_t * const restrict b) {
-  for (size_t i = 0; i < 256; i++) {
-    a->cs[i] = ((uint32_t) a->cs[i] + (uint32_t) (Q - b->cs[i])) % Q;
-  }
-}
-
-/**
- * Multiply `a` and `b` and store the product in `c`.
- *
- * Note: `a` and `b` are assumed to be in the NTT domain.
- *
- * @param[out] c Product polynomial, in the NTT domain.
- * @param[in] a Input polynomial, in the NTT domain.
- * @param[in] b Input polynomial, in the NTT domain.
- */
-static inline void poly_mul(poly_t * const restrict c, const poly_t * const restrict a, const poly_t * const restrict b) {
-  for (size_t i = 0; i < 128; i++) {
-    // note: uint64_t is required here or the zeta multiply overflows
-    // for x^3*x^5
-    const uint64_t a0 = a->cs[2 * i],
-                   a1 = a->cs[2 * i + 1],
-                   b0 = b->cs[2 * i],
-                   b1 = b->cs[2 * i + 1];
-    c->cs[2 * i] = (a0 * b0 + a1 * b1 * MUL_LUT[i]) % Q;
-    c->cs[2 * i + 1] = (a0 * b1 + a1 * b0) % Q;
-  }
-}
-
+// Polynomial coefficient 4-bit encoding lookup table
+// (used by `poly_encode_4bit()`)
 static const struct { uint16_t lo, hi; } ENCODE4_LUT[] = {
   { 0, 104 }, // 0
   { 105, 312 }, // 1
@@ -577,25 +320,8 @@ static const struct { uint16_t lo, hi; } ENCODE4_LUT[] = {
   { 3225, 3328 }, // 16
 };
 
-static const uint16_t DECODE4_LUT[] = {
-  0, // 0
-  208, // 1
-  416, // 2
-  624, // 3
-  832, // 4
-  1040, // 5
-  1248, // 6
-  1456, // 7
-  1665, // 8
-  1873, // 9
-  2081, // 10
-  2289, // 11
-  2497, // 12
-  2705, // 13
-  2913, // 14
-  3121, // 15
-};
-
+// Polynomial coefficient 10-bit encoding lookup table
+// (used by `poly_encode_10bit()`)
 static const struct { uint16_t lo, hi; } ENCODE10_LUT[] = {
   { 0, 1 }, // 0
   { 2, 4 }, // 1
@@ -1624,6 +1350,29 @@ static const struct { uint16_t lo, hi; } ENCODE10_LUT[] = {
   { 3328, 3328 }, // 1024
 };
 
+// polynomial coefficient 4-bit decoding lookup table
+// (used by `poly_decode_4bit()`)
+static const uint16_t DECODE4_LUT[] = {
+  0, // 0
+  208, // 1
+  416, // 2
+  624, // 3
+  832, // 4
+  1040, // 5
+  1248, // 6
+  1456, // 7
+  1665, // 8
+  1873, // 9
+  2081, // 10
+  2289, // 11
+  2497, // 12
+  2705, // 13
+  2913, // 14
+  3121, // 15
+};
+
+// polynomial coefficient 10-bit decoding lookup table
+// (used by `poly_decode_10bit()`)
 static const uint16_t DECODE10_LUT[] = {
   0, // 0
   3, // 1
@@ -2650,6 +2399,265 @@ static const uint16_t DECODE10_LUT[] = {
   3322, // 1022
   3326, // 1023
 };
+
+/**
+ * Initialize SHAKE128 extendable output function (XOF) by absorbing
+ * 32-byte value `r`, byte `i`, and byte `j`.
+ *
+ * Used by `poly_sample_ntt()` to sample polynomail coefficients.
+ *
+ * @param[out] xof SHAKE128 XOF context.
+ * @param[in] r Input 32-byte value.
+ * @param[in] i Input byte.
+ * @param[in] j Input byte.
+ */
+static inline void xof_init(sha3_xof_t * const xof, const uint8_t r[static 32], const uint8_t i, const uint8_t j) {
+  // init shake128 xof
+  shake128_xof_init(xof);
+
+  // absorb rho
+  shake128_xof_absorb(xof, r, 32);
+
+  // absorb i and j
+  const uint8_t ij[2] = { i, j };
+  shake128_xof_absorb(xof, ij, 2);
+}
+
+/**
+ * Initialize SHAKE256 XOF as a pseudo-random function (PRF) by
+ * absorbing 32-byte `seed` and byte `b`, then read `len` bytes of data
+ * from the PRF into the buffer pointed to by `out`.
+ *
+ * Used by `poly_sample_cbdN()` functions to sample polynomail
+ * coefficients.
+ *
+ * @param[in] seed 32 bytes.
+ * @param[in] b 1 byte.
+ * @param[out] out Output buffer of length `len`.
+ * @param[in] len Output buffer length.
+ */
+static inline void prf(const uint8_t seed[static 32], const uint8_t b, uint8_t * const out, const size_t len) {
+  // populate `buf` with `seed` and byte `b`
+  uint8_t buf[33] = { 0 };
+  memcpy(buf, seed, 32);
+  buf[32] = b;
+
+  // absorb `buf` into SHAKE256 XOF, write `len` bytes to `out`
+  shake256_xof_once(buf, sizeof(buf), out, len);
+}
+
+/**
+ * Constant-time difference.  Returns true if `a` and `b` differ and
+ * false they are the identical.
+ *
+ * Used by `fips203_kem512_decaps()`.
+ *
+ * @param[in] a Input value of length `len`.
+ * @param[in] b Input value of length `len`.
+ * @param[in] len Length of input values, in bytes.
+ *
+ * @return true if `a` and `b differ, and false if they are identical.
+ */
+static inline bool ct_diff(const uint8_t * const restrict a, const uint8_t * const restrict b, const size_t len) {
+  uint8_t r = 0;
+  for (size_t i = 0; i < len; i++) {
+    r |= (a[i] ^ b[i]);
+  }
+
+  return r == 0;
+}
+
+/**
+ * Constant-time copy. Copy `a` to `c` if `sel is `false` or copy `b` to
+ * `c` if `sel` is `true`.
+ *
+ * Used by `fips203_kem512_decaps()`.
+ *
+ * @param[out] c 32-byte output buffer.
+ * @param[in] sel Selection condition.
+ * @param[in] a 32-byte input value.
+ * @param[in] b 32-byte input value.
+ */
+static inline void ct_copy(uint8_t c[static 32], const bool sel, const uint8_t a[static 32], const uint8_t b[static 32]) {
+  const uint8_t mask = sel ? 0xff : 0x00;
+  for (size_t i = 0; i < 32; i++) {
+    c[i] = (a[i] & mask) ^ (b[i] & ~mask);
+  }
+}
+
+// Polynomial with 256 12-bit coefficients.
+typedef struct {
+  uint16_t cs[256]; // coefficients
+} poly_t;
+
+/**
+ * Initialize polynomial `a` by sampling coefficients in the NTT domain
+ * from SHAKE128 extendable output function (XOF) seeded by 32-byte
+ * value `rho`, byte `i`, and byte `j`.
+ *
+ * @param[out] a Output polynomial with coefficients in the NTT domain.
+ * @param[in] rho 32-byte input value used as XOF seed.
+ * @param[in] i One byte input value used as XOF seed.
+ * @param[in] j One byte input value used as XOF seed.
+ */
+static inline void poly_sample_ntt(poly_t * const a, const uint8_t rho[static 32], const uint8_t i, const uint8_t j) {
+  // init xof by absorbing rho, i, and j
+  sha3_xof_t xof = { 0 };
+  xof_init(&xof, rho, i, j);
+
+  for (size_t i = 0; i < 256;) {
+    // read 3 bytes from xof
+    uint8_t ds[3] = { 0 };
+    shake128_xof_squeeze(&xof, ds, 3);
+
+    // split 3 bytes into two 12-bit samples
+    const uint16_t d1 = ((uint16_t) ds[0]) | (((uint16_t) (ds[1] & 0xF)) << 8),
+                   d2 = ((uint16_t) ds[1] >> 4) | (((uint16_t) ds[2]) << 4);
+
+    // sample d1
+    if (d1 < Q) {
+      a->cs[i++] = d1;
+    }
+
+    // sample d2
+    if (d2 < Q && i < 256) {
+      a->cs[i++] = d2;
+    }
+  }
+}
+
+/**
+ * Define function which reads `64 * ETA` bytes from a pseudo-random
+ * function (PRF) seeded by 32-byte value `seed` and one byte value `b`,
+ * then samples values from the PRF output using the centered binomial
+ * distribution (CBD) with error `ETA` and writes the values as the
+ * coefficients of output polynomial `p`.
+ *
+ * @param[out] p Output polynomial with CBD(ETA) distributed coefficients.
+ * @param[in] seed 32-byte input value used as PRF seed.
+ * @param[in] b 1 byte input value used as PRF seed.
+ */
+#define DEF_POLY_SAMPLE_CBD(ETA) \
+  static inline void poly_sample_cbd ## ETA (poly_t * const p, const uint8_t seed[32], const uint8_t b) { \
+    /* read 64 * eta bytes of data from prf */ \
+    uint8_t buf[64 * ETA] = { 0 }; \
+    prf(seed, b, buf, sizeof(buf)); \
+    \
+    for (size_t i = 0; i < 256; i++) { \
+      uint16_t x = 0; \
+      for (size_t j = 0; j < ETA; j++) { \
+        const size_t ofs = 2 * i * ETA + j; \
+        x += (buf[ofs / 8] >> (ofs % 8)) & 0x01; \
+      } \
+      \
+      uint16_t y = 0; \
+      for (size_t j = 0; j < ETA; j++) { \
+        const size_t ofs = 2 * i * ETA + ETA + j; \
+        y += (buf[ofs / 8] >> (ofs % 8)) & 0x01; \
+      } \
+      \
+      p->cs[i] = (x + (Q - y)) % Q; /* (x - y) % Q */ \
+    } \
+  }
+
+// define poly_sample_cbd3() (PKE512_ETA1 = 3)
+DEF_POLY_SAMPLE_CBD(3)
+
+// define poly_sample_cbd2() (PKE512_ETA2 = 2)
+DEF_POLY_SAMPLE_CBD(2)
+
+/**
+ * Compute in-place number-theoretic transform (NTT) of polynomial `p`.
+ *
+ * @param[in/out] p Polynomial.
+ */
+static inline void poly_ntt(poly_t * const p) {
+  uint8_t k = 1;
+  for (uint16_t len = 128; len >= 2; len /= 2) {
+    for (uint16_t start = 0; start < 256; start += 2 * len) {
+      const uint16_t zeta = NTT_LUT[k++];
+
+      for (uint16_t j = start; j < start + len; j++) {
+        const uint16_t t = (zeta * p->cs[j + len]) % Q;
+        p->cs[j + len] = (p->cs[j] + (Q - t)) % Q; // (p[j] - t) % Q
+        p->cs[j] = (p->cs[j] + t) % Q;
+      }
+    }
+  }
+}
+
+/**
+ * Compute in-place inverse number-theoretic transform (NTT) of
+ * polynomial `p`.
+ *
+ * @param[in/out] p Polynomial.
+ */
+static inline void poly_inv_ntt(poly_t * const p) {
+  uint8_t k = 127;
+  for (uint16_t len = 2; len <= 128; len *= 2) {
+    for (uint16_t start = 0; start < 256; start += 2 * len) {
+      const uint16_t zeta = NTT_LUT[k--];
+
+      for (uint16_t j = start; j < start + len; j++) {
+        const uint16_t t = p->cs[j];
+        p->cs[j] = (t + p->cs[j + len]) % Q; // (t + p[j + len]) % Q
+        p->cs[j + len] = (zeta * ((p->cs[j + len] + (Q - t)))) % Q;
+      }
+    }
+  }
+
+  for (size_t i = 0; i < 256; i++) {
+    p->cs[i] = ((uint32_t) p->cs[i] * 3303) % Q;
+  }
+}
+
+/**
+ * Add polynomial `a` to polynomial `b` component-wise, and store the
+ * sum in `a`.
+ *
+ * @param[in/out] a Polynomial.
+ * @param[in] b Polynomial.
+ */
+static inline void poly_add(poly_t * const restrict a, const poly_t * const restrict b) {
+  for (size_t i = 0; i < 256; i++) {
+    a->cs[i] = ((uint32_t) a->cs[i] + (uint32_t) b->cs[i]) % Q;
+  }
+}
+
+/**
+ * Subtract polynomial `b` from polynomial `a` component-wise, and store the
+ * result in `a`.
+ *
+ * @param[in/out] a Polynomial.
+ * @param[in] b Polynomial.
+ */
+static inline void poly_sub(poly_t * const restrict a, const poly_t * const restrict b) {
+  for (size_t i = 0; i < 256; i++) {
+    a->cs[i] = ((uint32_t) a->cs[i] + (uint32_t) (Q - b->cs[i])) % Q;
+  }
+}
+
+/**
+ * Multiply `a` and `b` and store the product in `c`.
+ *
+ * Note: `a` and `b` are assumed to be in the NTT domain.
+ *
+ * @param[out] c Product polynomial, in the NTT domain.
+ * @param[in] a Input polynomial, in the NTT domain.
+ * @param[in] b Input polynomial, in the NTT domain.
+ */
+static inline void poly_mul(poly_t * const restrict c, const poly_t * const restrict a, const poly_t * const restrict b) {
+  for (size_t i = 0; i < 128; i++) {
+    // note: uint64_t is required here or the zeta multiply overflows
+    // for x^3*x^5
+    const uint64_t a0 = a->cs[2 * i],
+                   a1 = a->cs[2 * i + 1],
+                   b0 = b->cs[2 * i],
+                   b1 = b->cs[2 * i + 1];
+    c->cs[2 * i] = (a0 * b0 + a1 * b1 * MUL_LUT[i]) % Q;
+    c->cs[2 * i + 1] = (a0 * b1 + a1 * b0) % Q;
+  }
+}
 
 /**
  * Pack 12-bit coefficients of polynomial `p` and serialize them into

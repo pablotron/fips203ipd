@@ -2890,6 +2890,9 @@ static inline void poly_decode_1bit(poly_t * const p, const uint8_t b[static 32]
 // define mat2 and vec2 functions
 DEFINE_MAT_VEC_OPS(2)
 
+// define mat3 and vec3 functions
+DEFINE_MAT_VEC_OPS(3)
+
 /**
  * Generate PKE512 encryption and decryption key from given 32-byte
  * seed.
@@ -6553,6 +6556,75 @@ static void test_fips203_kem512_decaps(void) {
   }
 }
 
+static void test_mat3_mul(void) {
+  static const struct {
+    const char *name; // test name
+    const poly_t mat[9];
+    const poly_t vec[3];
+    const poly_t exp[3];
+  } TESTS[] = {{
+    .name = "[[1, x, x^2], [x^3, x^4, x^5], [x^6, x^7, x^8]] * [x^9, x^10, x^11]^T",
+    //       [    1    x  x^2  ]
+    // mat = [  x^3  x^4  x^5  ]
+    //       [  x^6  x^7  x^8  ]
+    .mat = {
+      { .cs = { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
+      { .cs = { 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 } },
+      { .cs = { 0, 0, 1, 0, 0, 0, 0, 0, 0, 0 } },
+
+      { .cs = { 0, 0, 0, 1, 0, 0, 0, 0, 0, 0 } },
+      { .cs = { 0, 0, 0, 0, 1, 0, 0, 0, 0, 0 } },
+      { .cs = { 0, 0, 0, 0, 0, 1, 0, 0, 0, 0 } },
+
+      { .cs = { 0, 0, 0, 0, 0, 0, 1, 0, 0, 0 } },
+      { .cs = { 0, 0, 0, 0, 0, 0, 0, 1, 0, 0 } },
+      { .cs = { 0, 0, 0, 0, 0, 0, 0, 0, 1, 0 } },
+    },
+
+    //       (   x^9, )
+    // vec = (  x^10, )
+    //       (  x^11  )
+    .vec = {
+      { .cs = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0 } },
+      { .cs = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0 } },
+      { .cs = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 } },
+    },
+
+    //       (   x^9 + x^11 + x^13  )
+    // exp = (  x^12 + x^14 + x^16  )
+    //       (  x^15 + x^17 + x^19  )
+    .exp = {
+      { .cs = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0 } },
+      { .cs = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1 } },
+      { .cs = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1 } },
+    },
+  }};
+
+  for (size_t i = 0; i < sizeof(TESTS)/sizeof(TESTS[0]); i++) {
+    // populate matrix, apply NTT
+    poly_t mat[9] = { 0 };
+    memcpy(mat, TESTS[i].mat, sizeof(mat));
+    mat3_ntt(mat);
+
+    // populate vector, apply NTT
+    poly_t vec[3] = { 0 };
+    memcpy(vec, TESTS[i].vec, sizeof(vec));
+    vec3_ntt(vec);
+
+    poly_t got[3] = { 0 };
+    mat3_mul(got, mat, vec); // got = mat * vec
+    vec3_inv_ntt(got); // got = InvNTT(got)
+
+    // check for expected value
+    if (memcmp(got, TESTS[i].exp, sizeof(got))) {
+      fprintf(stderr, "test_mat3_mul(\"%s\") failed, got:\n", TESTS[i].name);
+      vec3_write(stderr, "got", got);
+      fprintf(stderr, "exp:\n");
+      vec3_write(stderr, "exp", TESTS[i].exp);
+    }
+  }
+}
+
 int main(void) {
   test_poly_ntt_roundtrip();
   test_poly_sample_ntt();
@@ -6579,5 +6651,6 @@ int main(void) {
   test_fips203_kem512_keygen();
   test_fips203_kem512_encaps();
   test_fips203_kem512_decaps();
+  test_mat3_mul();
 }
 #endif // TEST_FIPS203

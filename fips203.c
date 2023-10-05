@@ -7,6 +7,7 @@
 
 #define Q 3329 // modulus (13*2^8 + 1)
 
+// PKE512 parameters
 #define PKE512_K 2
 #define PKE512_ETA1 3
 #define PKE512_ETA2 2
@@ -16,6 +17,7 @@
 #define PKE512_DK_SIZE (384 * PKE512_K)
 #define PKE512_CT_SIZE (32 * (PKE512_DU * PKE512_K + PKE512_DV))
 
+// PKE768 parameters
 #define PKE768_K 3
 #define PKE768_ETA1 2
 #define PKE768_ETA2 2
@@ -25,6 +27,7 @@
 #define PKE768_DK_SIZE (384 * PKE768_K)
 #define PKE768_CT_SIZE (32 * (PKE768_DU * PKE768_K + PKE768_DV))
 
+// PKE1024 parameters
 #define PKE1024_K 4
 #define PKE1024_ETA1 2
 #define PKE1024_ETA2 2
@@ -7970,10 +7973,52 @@ void fips203_kem1024_decaps(uint8_t k[static 32], const uint8_t ct[static FIPS20
 }
 
 #ifdef TEST_FIPS203
-#include "hex.h"
-#include <stdio.h>
+#include <stdlib.h> // exit()
+#include <stdio.h> // fprintf()
+#include <stddef.h> // size_t
+#include <sys/random.h> // getrandom() (used by rand_bytes())
+#include <err.h> // errx() (used by rand_bytes())
+#include "hex.h" // hex_write()
 
-// write polynomial coefficients to given file handle
+// number of iterations in `test_fips203_*_roundtrip()` tests
+// (keep this relatively low so test suite doesn't take forever)
+#define NUM_ROUNDTRIP_TIMES 10
+
+// Fill `buf` with `len` random bytes using `getrandom()`.
+//
+// Prints an error and exits with an error code if `len` random bytes
+// could not be read.
+static void rand_bytes(uint8_t * const buf, const size_t len) {
+  const ssize_t got = getrandom(buf, len, 0);
+  if (got < (ssize_t) len) {
+    // print error message, exit with failure
+    errx(-1, "read %zu bytes from getrandom() failed", len);
+  }
+}
+
+// Verify that shared keys `k0` and `k1` are equal.
+//
+// Prints an error message and exits with an error code if the keys are
+// not equal.
+//
+// Used by `test_fips203_kem{512,768,1024}_roundtrip()` functions.
+static void compare_keys(const char *func, const uint8_t k0[static 32], const uint8_t k1[static 32], const uint8_t keygen_seed[static 64], const uint8_t encaps_seed[static 32]) {
+  // compare keys
+  if (memcmp(k0, k1, 32)) {
+    fprintf(stderr, "%s: k0 != k1:\nk0 = ", func);
+    hex_write(stderr, k0, 32);
+    fprintf(stderr, "\nk1 = ");
+    hex_write(stderr, k1, 32);
+    fprintf(stderr, "\nkeygen_seed = ");
+    hex_write(stderr, keygen_seed, 64);
+    fprintf(stderr, "\nencaps_seed = ");
+    hex_write(stderr, encaps_seed, 32);
+    fputs("\n", stderr);
+    exit(-1);
+  }
+}
+
+// Write polynomial coefficients to given file handle
 static void poly_write(FILE *fh, const poly_t * const p) {
   // find index of maximum non-zero coefficient
   size_t max = 0;
@@ -11560,6 +11605,33 @@ static void test_fips203_kem512_decaps(void) {
   }
 }
 
+static void test_fips203_kem512_roundtrip(void) {
+  uint8_t buf[96] = { 0 };
+
+  for (size_t i = 0; i < NUM_ROUNDTRIP_TIMES; i++) {
+    rand_bytes(buf, sizeof(buf));
+    const uint8_t * const keygen_seed = buf; // 64 bytes
+    const uint8_t * const encaps_seed = buf + 64; // 32 bytes
+
+    // generate encapsulation and decapsulation keys
+    uint8_t ek[FIPS203_KEM512_EK_SIZE] = { 0 };
+    uint8_t dk[FIPS203_KEM512_DK_SIZE] = { 0 };
+    fips203_kem512_keygen(ek, dk, keygen_seed);
+
+    // encapsulate, get key and ciphertext
+    uint8_t k0[32] = { 0 };
+    uint8_t ct[FIPS203_KEM512_CT_SIZE] = { 0 };
+    fips203_kem512_encaps(k0, ct, ek, encaps_seed);
+
+    // decapsulate key from ciphertext
+    uint8_t k1[32] = { 0 };
+    fips203_kem512_decaps(k1, ct, dk);
+
+    // verify that k0 == k1
+    compare_keys(__func__, k0, k1, keygen_seed, encaps_seed);
+  }
+}
+
 static void test_mat3_mul(void) {
   static const struct {
     const char *name; // test name
@@ -14573,6 +14645,33 @@ static void test_fips203_kem768_decaps(void) {
       hex_write(stderr, TESTS[i].exp, sizeof(got));
       fputs("\n", stderr);
     }
+  }
+}
+
+static void test_fips203_kem768_roundtrip(void) {
+  uint8_t buf[96] = { 0 };
+
+  for (size_t i = 0; i < NUM_ROUNDTRIP_TIMES; i++) {
+    rand_bytes(buf, sizeof(buf));
+    const uint8_t * const keygen_seed = buf; // 64 bytes
+    const uint8_t * const encaps_seed = buf + 64; // 32 bytes
+
+    // generate encapsulation and decapsulation keys
+    uint8_t ek[FIPS203_KEM768_EK_SIZE] = { 0 };
+    uint8_t dk[FIPS203_KEM768_DK_SIZE] = { 0 };
+    fips203_kem768_keygen(ek, dk, keygen_seed);
+
+    // encapsulate, get key and ciphertext
+    uint8_t k0[32] = { 0 };
+    uint8_t ct[FIPS203_KEM768_CT_SIZE] = { 0 };
+    fips203_kem768_encaps(k0, ct, ek, encaps_seed);
+
+    // decapsulate key from ciphertext
+    uint8_t k1[32] = { 0 };
+    fips203_kem768_decaps(k1, ct, dk);
+
+    // verify that k0 == k1
+    compare_keys(__func__, k0, k1, keygen_seed, encaps_seed);
   }
 }
 
@@ -18508,6 +18607,33 @@ static void test_fips203_kem1024_decaps(void) {
   }
 }
 
+static void test_fips203_kem1024_roundtrip(void) {
+  uint8_t buf[96] = { 0 };
+
+  for (size_t i = 0; i < NUM_ROUNDTRIP_TIMES; i++) {
+    rand_bytes(buf, sizeof(buf));
+    const uint8_t * const keygen_seed = buf; // 64 bytes
+    const uint8_t * const encaps_seed = buf + 64; // 32 bytes
+
+    // generate encapsulation and decapsulation keys
+    uint8_t ek[FIPS203_KEM1024_EK_SIZE] = { 0 };
+    uint8_t dk[FIPS203_KEM1024_DK_SIZE] = { 0 };
+    fips203_kem1024_keygen(ek, dk, keygen_seed);
+
+    // encapsulate, get key and ciphertext
+    uint8_t k0[32] = { 0 };
+    uint8_t ct[FIPS203_KEM1024_CT_SIZE] = { 0 };
+    fips203_kem1024_encaps(k0, ct, ek, encaps_seed);
+
+    // decapsulate key from ciphertext
+    uint8_t k1[32] = { 0 };
+    fips203_kem1024_decaps(k1, ct, dk);
+
+    // verify that k0 == k1
+    compare_keys(__func__, k0, k1, keygen_seed, encaps_seed);
+  }
+}
+
 int main(void) {
   test_poly_ntt_roundtrip();
   test_poly_sample_ntt();
@@ -18538,6 +18664,7 @@ int main(void) {
   test_fips203_kem512_keygen();
   test_fips203_kem512_encaps();
   test_fips203_kem512_decaps();
+  test_fips203_kem512_roundtrip();
   test_mat3_mul();
   test_vec3_add();
   test_vec3_dot();
@@ -18548,6 +18675,7 @@ int main(void) {
   test_fips203_kem768_keygen();
   test_fips203_kem768_encaps();
   test_fips203_kem768_decaps();
+  test_fips203_kem768_roundtrip();
   test_mat4_mul();
   test_vec4_add();
   test_vec4_dot();
@@ -18558,5 +18686,6 @@ int main(void) {
   test_fips203_kem1024_keygen();
   test_fips203_kem1024_encaps();
   test_fips203_kem1024_decaps();
+  test_fips203_kem1024_roundtrip();
 }
 #endif // TEST_FIPS203

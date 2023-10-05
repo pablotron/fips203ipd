@@ -12,7 +12,7 @@
 # `fips203.c`.
 #
 
-DS = [4, 10] # bit lengths (1 excluded)
+DS = [4, 5, 10, 11] # bit lengths (1 excluded)
 Q = 3329 # modulus
 
 # templates

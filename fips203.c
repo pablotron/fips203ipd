@@ -7330,7 +7330,7 @@ static inline void pke512_encrypt(uint8_t ct[static PKE512_CT_SIZE], const uint8
 
   // encode u, append to ct
   for (size_t i = 0; i < PKE512_K; i++) {
-    poly_encode_10bit(ct + 320 * i, u + i);
+    poly_encode_10bit(ct +  32 * PKE512_DU * i, u + i);
   }
 
   // decode message `m` into polynomial `mu`
@@ -7348,7 +7348,7 @@ static inline void pke512_encrypt(uint8_t ct[static PKE512_CT_SIZE], const uint8
   poly_add(&v, &mu);  // v += mu
 
   // encode v, append to ct
-  poly_encode_4bit(ct + 320 * PKE512_K, &v);
+  poly_encode_4bit(ct + 32 * PKE512_DU * PKE512_K, &v);
 }
 
 /**
@@ -7578,7 +7578,7 @@ static inline void pke768_encrypt(uint8_t ct[static PKE768_CT_SIZE], const uint8
 
   // encode u, append to ct
   for (size_t i = 0; i < PKE768_K; i++) {
-    poly_encode_10bit(ct + 320 * i, u + i);
+    poly_encode_10bit(ct + 32 * PKE768_DU * i, u + i);
   }
 
   // decode message `m` into polynomial `mu`
@@ -7596,7 +7596,7 @@ static inline void pke768_encrypt(uint8_t ct[static PKE768_CT_SIZE], const uint8
   poly_add(&v, &mu);  // v += mu
 
   // encode v, append to ct
-  poly_encode_4bit(ct + 320 * PKE768_K, &v);
+  poly_encode_4bit(ct + 32 * PKE768_DU * PKE768_K, &v);
 }
 
 /**
@@ -7826,7 +7826,7 @@ static inline void pke1024_encrypt(uint8_t ct[static PKE1024_CT_SIZE], const uin
 
   // encode u, append to ct
   for (size_t i = 0; i < PKE1024_K; i++) {
-    poly_encode_11bit(ct + 352 * i, u + i);
+    poly_encode_11bit(ct + 32 * PKE1024_DU * i, u + i);
   }
 
   // decode message `m` into polynomial `mu`
@@ -7844,7 +7844,7 @@ static inline void pke1024_encrypt(uint8_t ct[static PKE1024_CT_SIZE], const uin
   poly_add(&v, &mu);  // v += mu
 
   // encode v, append to ct
-  poly_encode_5bit(ct + 352 * PKE1024_K, &v);
+  poly_encode_5bit(ct + 32 * PKE1024_DU * PKE1024_K, &v);
 }
 
 /**
@@ -7917,7 +7917,7 @@ void fips203_kem1024_keygen(uint8_t ek[static FIPS203_KEM1024_EK_SIZE], uint8_t 
 void fips203_kem1024_encaps(uint8_t k[static 32], uint8_t ct[static FIPS203_KEM1024_CT_SIZE], const uint8_t ek[static FIPS203_KEM1024_EK_SIZE], const uint8_t seed[static 32]) {
   uint8_t data[64] = { 0 };
   memcpy(data, seed, 32); // append seed
-  sha3_256(ek, PKE768_EK_SIZE, data + 32); // append sha3-256(ek)
+  sha3_256(ek, PKE1024_EK_SIZE, data + 32); // append sha3-256(ek)
 
   uint8_t kr[64] = { 0 };
   sha3_512(data, 64, kr); // (K, r) <- sha3-512(data)

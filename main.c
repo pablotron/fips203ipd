@@ -13,7 +13,7 @@
 #include <string.h> // memcmp()
 #include <sys/random.h> // getrandom()
 #include <err.h> // errx()
-#include "fips203.h" // fips203_*()
+#include "fips203ipd.h" // fips203ipd_*()
 #include "hex.h" // hex_write()
 
 // number of times to test seach parameter set
@@ -60,18 +60,18 @@ static void compare_keys(const char *func, const uint8_t k0[static 32], const ui
 // Test KEM512 with given seeds.
 static void test_kem512(const seeds_t * const seeds) {
   // generate encapsulation and decapsulation keys
-  uint8_t ek[FIPS203_KEM512_EK_SIZE] = { 0 };
-  uint8_t dk[FIPS203_KEM512_DK_SIZE] = { 0 };
-  fips203_kem512_keygen(ek, dk, seeds->keygen);
+  uint8_t ek[FIPS203IPD_KEM512_EK_SIZE] = { 0 };
+  uint8_t dk[FIPS203IPD_KEM512_DK_SIZE] = { 0 };
+  fips203ipd_kem512_keygen(ek, dk, seeds->keygen);
 
   // encapsulate, get key and ciphertext
   uint8_t k0[32] = { 0 };
-  uint8_t ct[FIPS203_KEM512_CT_SIZE] = { 0 };
-  fips203_kem512_encaps(k0, ct, ek, seeds->encaps);
+  uint8_t ct[FIPS203IPD_KEM512_CT_SIZE] = { 0 };
+  fips203ipd_kem512_encaps(k0, ct, ek, seeds->encaps);
 
   // decapsulate key from ciphertext
   uint8_t k1[32] = { 0 };
-  fips203_kem512_decaps(k1, ct, dk);
+  fips203ipd_kem512_decaps(k1, ct, dk);
 
   // verify that k0 == k1
   compare_keys(__func__, k0, k1, seeds);
@@ -92,18 +92,18 @@ static void run_kem512_tests(void) {
 // Test KEM768 with given seeds.
 static void test_kem768(const seeds_t * const seeds) {
   // generate encapsulation and decapsulation keys
-  uint8_t ek[FIPS203_KEM768_EK_SIZE] = { 0 };
-  uint8_t dk[FIPS203_KEM768_DK_SIZE] = { 0 };
-  fips203_kem768_keygen(ek, dk, seeds->keygen);
+  uint8_t ek[FIPS203IPD_KEM768_EK_SIZE] = { 0 };
+  uint8_t dk[FIPS203IPD_KEM768_DK_SIZE] = { 0 };
+  fips203ipd_kem768_keygen(ek, dk, seeds->keygen);
 
   // encapsulate, get shared key and ciphertext
   uint8_t k0[32] = { 0 };
-  uint8_t ct[FIPS203_KEM768_CT_SIZE] = { 0 };
-  fips203_kem768_encaps(k0, ct, ek, seeds->encaps);
+  uint8_t ct[FIPS203IPD_KEM768_CT_SIZE] = { 0 };
+  fips203ipd_kem768_encaps(k0, ct, ek, seeds->encaps);
 
   // decapsulate shared key from ciphertext
   uint8_t k1[32] = { 0 };
-  fips203_kem768_decaps(k1, ct, dk);
+  fips203ipd_kem768_decaps(k1, ct, dk);
 
   // verify that k0 == k1
   compare_keys(__func__, k0, k1, seeds);
@@ -124,18 +124,18 @@ static void run_kem768_tests(void) {
 // Test KEM1024 with given seeds.
 static void test_kem1024(const seeds_t * const seeds) {
   // generate encapsulation and decapsulation keys
-  uint8_t ek[FIPS203_KEM1024_EK_SIZE] = { 0 };
-  uint8_t dk[FIPS203_KEM1024_DK_SIZE] = { 0 };
-  fips203_kem1024_keygen(ek, dk, seeds->keygen);
+  uint8_t ek[FIPS203IPD_KEM1024_EK_SIZE] = { 0 };
+  uint8_t dk[FIPS203IPD_KEM1024_DK_SIZE] = { 0 };
+  fips203ipd_kem1024_keygen(ek, dk, seeds->keygen);
 
   // encapsulate, get key and ciphertext
   uint8_t k0[32] = { 0 };
-  uint8_t ct[FIPS203_KEM1024_CT_SIZE] = { 0 };
-  fips203_kem1024_encaps(k0, ct, ek, seeds->encaps);
+  uint8_t ct[FIPS203IPD_KEM1024_CT_SIZE] = { 0 };
+  fips203ipd_kem1024_encaps(k0, ct, ek, seeds->encaps);
 
   // decapsulate key from ciphertext
   uint8_t k1[32] = { 0 };
-  fips203_kem1024_decaps(k1, ct, dk);
+  fips203ipd_kem1024_decaps(k1, ct, dk);
 
   // verify that k0 == k1
   compare_keys(__func__, k0, k1, seeds);

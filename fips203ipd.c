@@ -1,9 +1,17 @@
+//
+// Copyright (c) 2023 Paul Duncan
+// SPDX-License-Identifier: MIT-0
+//
+// C11 implementation of the KEM512, KEM768, and KEM1024 parameter sets
+// from the FIPS 203 initial public draft (IPD).
+//
+
 #include <stdbool.h> // bool
 #include <stddef.h> // size_t
 #include <stdint.h> // uint8_t
 #include <string.h> // memcpy()
-#include "sha3.h" // sha3
-#include "fips203.h"
+#include "sha3.h" // sha3_*()
+#include "fips203ipd.h" // fips203ipd_*()
 
 #define Q 3329 // modulus (13*2^8 + 1)
 
@@ -6640,7 +6648,7 @@ static inline void prf(const uint8_t seed[static 32], const uint8_t b, uint8_t *
  * Constant-time difference.  Returns true if `a` and `b` differ and
  * false they are the identical.
  *
- * Used by `fips203_kem512_decaps()`.
+ * Used by `fips203ipd_kem512_decaps()`.
  *
  * @param[in] a Input value of length `len`.
  * @param[in] b Input value of length `len`.
@@ -6661,7 +6669,7 @@ static inline bool ct_diff(const uint8_t * const restrict a, const uint8_t * con
  * Constant-time copy. Copy `a` to `c` if `sel is `false` or copy `b` to
  * `c` if `sel` is `true`.
  *
- * Used by `fips203_kem512_decaps()`.
+ * Used by `fips203ipd_kem512_decaps()`.
  *
  * @param[out] c 32-byte output buffer.
  * @param[in] sel Selection condition.
@@ -7399,7 +7407,7 @@ static inline void pke512_decrypt(uint8_t m[static 32], const uint8_t dk[static 
  * @param[out] dk KEM512 decapsulation key (1632 bytes).
  * @param[in] seed Random seed (64 bytes).
  */
-void fips203_kem512_keygen(uint8_t ek[static FIPS203_KEM512_EK_SIZE], uint8_t dk[static FIPS203_KEM512_DK_SIZE], const uint8_t seed[static 64]) {
+void fips203ipd_kem512_keygen(uint8_t ek[static FIPS203IPD_KEM512_EK_SIZE], uint8_t dk[static FIPS203IPD_KEM512_DK_SIZE], const uint8_t seed[static 64]) {
   const uint8_t * const z = seed; // random implicit rejection seed (32 bytes)
   const uint8_t * const d = seed + 32; // pke512_keygen() random seed (32 bytes)
 
@@ -7421,7 +7429,7 @@ void fips203_kem512_keygen(uint8_t ek[static FIPS203_KEM512_EK_SIZE], uint8_t dk
  * @param[in] ek KEM512 encapsulation key (800 bytes).
  * @param[in] seed Random seed (32 bytes).
  */
-void fips203_kem512_encaps(uint8_t k[static 32], uint8_t ct[static FIPS203_KEM512_CT_SIZE], const uint8_t ek[static FIPS203_KEM512_EK_SIZE], const uint8_t seed[static 32]) {
+void fips203ipd_kem512_encaps(uint8_t k[static 32], uint8_t ct[static FIPS203IPD_KEM512_CT_SIZE], const uint8_t ek[static FIPS203IPD_KEM512_EK_SIZE], const uint8_t seed[static 32]) {
   uint8_t data[64] = { 0 };
   memcpy(data, seed, 32); // append seed
   sha3_256(ek, PKE512_EK_SIZE, data + 32); // append sha3-256(ek)
@@ -7442,7 +7450,7 @@ void fips203_kem512_encaps(uint8_t k[static 32], uint8_t ct[static FIPS203_KEM51
  * @param[out] ct Ciphertext (768 bytes).
  * @param[in] dk_kem KEM512 decapsulation key (1632 bytes).
  */
-void fips203_kem512_decaps(uint8_t k[static 32], const uint8_t ct[static FIPS203_KEM512_CT_SIZE], const uint8_t dk_kem[static FIPS203_KEM512_DK_SIZE]) {
+void fips203ipd_kem512_decaps(uint8_t k[static 32], const uint8_t ct[static FIPS203IPD_KEM512_CT_SIZE], const uint8_t dk_kem[static FIPS203IPD_KEM512_DK_SIZE]) {
   const uint8_t * const dk_pke = dk_kem;
   const uint8_t * const ek_pke = dk_kem + 384 * PKE512_K;
   const uint8_t * const h = dk_kem + (2 * 384 * PKE512_K + 32);
@@ -7647,7 +7655,7 @@ static inline void pke768_decrypt(uint8_t m[static 32], const uint8_t dk[static 
  * @param[out] dk KEM768 decapsulation key (2400 bytes).
  * @param[in] seed Random seed (64 bytes).
  */
-void fips203_kem768_keygen(uint8_t ek[static FIPS203_KEM768_EK_SIZE], uint8_t dk[static FIPS203_KEM768_DK_SIZE], const uint8_t seed[static 64]) {
+void fips203ipd_kem768_keygen(uint8_t ek[static FIPS203IPD_KEM768_EK_SIZE], uint8_t dk[static FIPS203IPD_KEM768_DK_SIZE], const uint8_t seed[static 64]) {
   const uint8_t * const z = seed; // random implicit rejection seed (32 bytes)
   const uint8_t * const d = seed + 32; // pke768_keygen() random seed (32 bytes)
 
@@ -7669,7 +7677,7 @@ void fips203_kem768_keygen(uint8_t ek[static FIPS203_KEM768_EK_SIZE], uint8_t dk
  * @param[in] ek KEM768 encapsulation key (1184 bytes).
  * @param[in] seed Random seed (32 bytes).
  */
-void fips203_kem768_encaps(uint8_t k[static 32], uint8_t ct[static FIPS203_KEM768_CT_SIZE], const uint8_t ek[static FIPS203_KEM768_EK_SIZE], const uint8_t seed[static 32]) {
+void fips203ipd_kem768_encaps(uint8_t k[static 32], uint8_t ct[static FIPS203IPD_KEM768_CT_SIZE], const uint8_t ek[static FIPS203IPD_KEM768_EK_SIZE], const uint8_t seed[static 32]) {
   uint8_t data[64] = { 0 };
   memcpy(data, seed, 32); // append seed
   sha3_256(ek, PKE768_EK_SIZE, data + 32); // append sha3-256(ek)
@@ -7690,7 +7698,7 @@ void fips203_kem768_encaps(uint8_t k[static 32], uint8_t ct[static FIPS203_KEM76
  * @param[out] ct Ciphertext (1088 bytes).
  * @param[in] dk_kem KEM768 decapsulation key (2400 bytes).
  */
-void fips203_kem768_decaps(uint8_t k[static 32], const uint8_t ct[static FIPS203_KEM768_CT_SIZE], const uint8_t dk_kem[static FIPS203_KEM768_DK_SIZE]) {
+void fips203ipd_kem768_decaps(uint8_t k[static 32], const uint8_t ct[static FIPS203IPD_KEM768_CT_SIZE], const uint8_t dk_kem[static FIPS203IPD_KEM768_DK_SIZE]) {
   const uint8_t * const dk_pke = dk_kem;
   const uint8_t * const ek_pke = dk_kem + 384 * PKE768_K;
   const uint8_t * const h = dk_kem + (2 * 384 * PKE768_K + 32);
@@ -7895,7 +7903,7 @@ static inline void pke1024_decrypt(uint8_t m[static 32], const uint8_t dk[static
  * @param[out] dk KEM1024 decapsulation key (3168 bytes).
  * @param[in] seed Random seed (64 bytes).
  */
-void fips203_kem1024_keygen(uint8_t ek[static FIPS203_KEM1024_EK_SIZE], uint8_t dk[static FIPS203_KEM1024_DK_SIZE], const uint8_t seed[static 64]) {
+void fips203ipd_kem1024_keygen(uint8_t ek[static FIPS203IPD_KEM1024_EK_SIZE], uint8_t dk[static FIPS203IPD_KEM1024_DK_SIZE], const uint8_t seed[static 64]) {
   const uint8_t * const z = seed; // random implicit rejection seed (32 bytes)
   const uint8_t * const d = seed + 32; // pke1024_keygen() random seed (32 bytes)
 
@@ -7917,7 +7925,7 @@ void fips203_kem1024_keygen(uint8_t ek[static FIPS203_KEM1024_EK_SIZE], uint8_t 
  * @param[in] ek KEM768 encapsulation key (1568 bytes).
  * @param[in] seed Random seed (32 bytes).
  */
-void fips203_kem1024_encaps(uint8_t k[static 32], uint8_t ct[static FIPS203_KEM1024_CT_SIZE], const uint8_t ek[static FIPS203_KEM1024_EK_SIZE], const uint8_t seed[static 32]) {
+void fips203ipd_kem1024_encaps(uint8_t k[static 32], uint8_t ct[static FIPS203IPD_KEM1024_CT_SIZE], const uint8_t ek[static FIPS203IPD_KEM1024_EK_SIZE], const uint8_t seed[static 32]) {
   uint8_t data[64] = { 0 };
   memcpy(data, seed, 32); // append seed
   sha3_256(ek, PKE1024_EK_SIZE, data + 32); // append sha3-256(ek)
@@ -7938,7 +7946,7 @@ void fips203_kem1024_encaps(uint8_t k[static 32], uint8_t ct[static FIPS203_KEM1
  * @param[out] ct Ciphertext (1568 bytes).
  * @param[in] dk_kem KEM768 decapsulation key (3168 bytes).
  */
-void fips203_kem1024_decaps(uint8_t k[static 32], const uint8_t ct[static FIPS203_KEM1024_CT_SIZE], const uint8_t dk_kem[static FIPS203_KEM1024_DK_SIZE]) {
+void fips203ipd_kem1024_decaps(uint8_t k[static 32], const uint8_t ct[static FIPS203IPD_KEM1024_CT_SIZE], const uint8_t dk_kem[static FIPS203IPD_KEM1024_DK_SIZE]) {
   const uint8_t * const dk_pke = dk_kem;
   const uint8_t * const ek_pke = dk_kem + 384 * PKE1024_K;
   const uint8_t * const h = dk_kem + (2 * 384 * PKE1024_K + 32);
@@ -7972,7 +7980,7 @@ void fips203_kem1024_decaps(uint8_t k[static 32], const uint8_t ct[static FIPS20
   ct_copy(k, ct_diff(ct, ct2, PKE1024_CT_SIZE), kr, k_rej);
 }
 
-#ifdef TEST_FIPS203
+#ifdef TEST_FIPS203IPD
 #include <stdlib.h> // exit()
 #include <stdio.h> // fprintf()
 #include <stddef.h> // size_t
@@ -7980,7 +7988,7 @@ void fips203_kem1024_decaps(uint8_t k[static 32], const uint8_t ct[static FIPS20
 #include <err.h> // errx() (used by rand_bytes())
 #include "hex.h" // hex_write()
 
-// number of iterations in `test_fips203_*_roundtrip()` tests
+// number of iterations in `test_fips203ipd_*_roundtrip()` tests
 // (keep this relatively low so test suite doesn't take forever)
 #define NUM_ROUNDTRIP_TIMES 10
 
@@ -8001,7 +8009,7 @@ static void rand_bytes(uint8_t * const buf, const size_t len) {
 // Prints an error message and exits with an error code if the keys are
 // not equal.
 //
-// Used by `test_fips203_kem{512,768,1024}_roundtrip()` functions.
+// Used by `test_fips203ipd_kem{512,768,1024}_roundtrip()` functions.
 static void compare_keys(const char *func, const uint8_t k0[static 32], const uint8_t k1[static 32], const uint8_t keygen_seed[static 64], const uint8_t encaps_seed[static 32]) {
   // compare keys
   if (memcmp(k0, k1, 32)) {
@@ -10079,12 +10087,12 @@ static void test_pke512_decrypt(void) {
   }
 }
 
-static void test_fips203_kem512_keygen(void) {
+static void test_fips203ipd_kem512_keygen(void) {
   static const struct {
     const char *name; // test name
     const uint8_t seed[64]; // test seed
     const uint8_t exp_ek[PKE512_EK_SIZE]; // expected ek (800 bytes)
-    const uint8_t exp_dk[FIPS203_KEM512_DK_SIZE]; // expected dk (1632 bytes)
+    const uint8_t exp_dk[FIPS203IPD_KEM512_DK_SIZE]; // expected dk (1632 bytes)
   } TESTS[] = {{
     .name = "all-zero",
     .seed = { 0 },
@@ -10301,12 +10309,12 @@ static void test_fips203_kem512_keygen(void) {
   for (size_t i = 0; i < sizeof(TESTS)/sizeof(TESTS[0]); i++) {
     // generate pke512 ek and dk from seed
     uint8_t got_ek[PKE512_EK_SIZE] = { 0 },
-            got_dk[FIPS203_KEM512_DK_SIZE] = { 0 };
-    fips203_kem512_keygen(got_ek, got_dk, TESTS[i].seed);
+            got_dk[FIPS203IPD_KEM512_DK_SIZE] = { 0 };
+    fips203ipd_kem512_keygen(got_ek, got_dk, TESTS[i].seed);
 
     // check for expected ek
     if (memcmp(&got_ek, &(TESTS[i].exp_ek), sizeof(got_ek))) {
-      fprintf(stderr, "test_fips203_kem512_keygen(\"%s\") ek check failed, got ek:\n", TESTS[i].name);
+      fprintf(stderr, "test_fips203ipd_kem512_keygen(\"%s\") ek check failed, got ek:\n", TESTS[i].name);
       hex_write(stderr, got_ek, sizeof(got_ek));
       fprintf(stderr, "\nexp ek:\n");
       hex_write(stderr, TESTS[i].exp_ek, sizeof(got_ek));
@@ -10315,7 +10323,7 @@ static void test_fips203_kem512_keygen(void) {
 
     // check for expected dk
     if (memcmp(&got_dk, &(TESTS[i].exp_dk), sizeof(got_dk))) {
-      fprintf(stderr, "test_fips203_kem512_keygen(\"%s\") dk check failed, got dk:\n", TESTS[i].name);
+      fprintf(stderr, "test_fips203ipd_kem512_keygen(\"%s\") dk check failed, got dk:\n", TESTS[i].name);
       hex_write(stderr, got_dk, sizeof(got_dk));
       fprintf(stderr, "\nexp dk:\n");
       hex_write(stderr, TESTS[i].exp_dk, sizeof(got_dk));
@@ -10324,13 +10332,13 @@ static void test_fips203_kem512_keygen(void) {
   }
 }
 
-static void test_fips203_kem512_encaps(void) {
+static void test_fips203ipd_kem512_encaps(void) {
   static const struct {
     const char *name; // test name
-    const uint8_t ek[FIPS203_KEM512_EK_SIZE]; // test encapsulation key (800 bytes)
+    const uint8_t ek[FIPS203IPD_KEM512_EK_SIZE]; // test encapsulation key (800 bytes)
     const uint8_t seed[32]; // test randomness (32 bytes)
     const uint8_t exp_k[32]; // expected shared key (32 bytes)
-    const uint8_t exp_ct[FIPS203_KEM512_CT_SIZE]; // expected ciphertext (768 bytes)
+    const uint8_t exp_ct[FIPS203IPD_KEM512_CT_SIZE]; // expected ciphertext (768 bytes)
   } TESTS[] = {{
     .name = "seed = 0",
     .ek = {
@@ -10482,12 +10490,12 @@ static void test_fips203_kem512_encaps(void) {
   for (size_t i = 0; i < sizeof(TESTS)/sizeof(TESTS[0]); i++) {
     // Generate shared key `got_k` and ciphertext `got_ct` for test
     // encapsulation key `ek` and randomness `seed`.
-    uint8_t got_k[32] = { 0 }, got_ct[FIPS203_KEM512_CT_SIZE] = { 0 };
-    fips203_kem512_encaps(got_k, got_ct, TESTS[i].ek, TESTS[i].seed);
+    uint8_t got_k[32] = { 0 }, got_ct[FIPS203IPD_KEM512_CT_SIZE] = { 0 };
+    fips203ipd_kem512_encaps(got_k, got_ct, TESTS[i].ek, TESTS[i].seed);
 
     // check for expected shared key
     if (memcmp(got_k, TESTS[i].exp_k, sizeof(got_k))) {
-      fprintf(stderr, "test_fips203_kem512_encaps(\"%s\") failed, got k:\n", TESTS[i].name);
+      fprintf(stderr, "test_fips203ipd_kem512_encaps(\"%s\") failed, got k:\n", TESTS[i].name);
       hex_write(stderr, got_k, sizeof(got_k));
       fprintf(stderr, "\nexp:\n");
       hex_write(stderr, TESTS[i].exp_k, sizeof(got_k));
@@ -10496,7 +10504,7 @@ static void test_fips203_kem512_encaps(void) {
 
     // check for expected ciphertext
     if (memcmp(got_ct, TESTS[i].exp_ct, sizeof(got_ct))) {
-      fprintf(stderr, "test_fips203_kem512_encaps(\"%s\") failed, got ct:\n", TESTS[i].name);
+      fprintf(stderr, "test_fips203ipd_kem512_encaps(\"%s\") failed, got ct:\n", TESTS[i].name);
       hex_write(stderr, got_ct, sizeof(got_ct));
       fprintf(stderr, "\nexp ct:\n");
       hex_write(stderr, TESTS[i].exp_ct, sizeof(got_ct));
@@ -10505,11 +10513,11 @@ static void test_fips203_kem512_encaps(void) {
   }
 }
 
-static void test_fips203_kem512_decaps(void) {
+static void test_fips203ipd_kem512_decaps(void) {
   static const struct {
     const char *name; // test name
-    const uint8_t ct[FIPS203_KEM512_CT_SIZE]; // test ciphertext (768 bytes)
-    const uint8_t dk[FIPS203_KEM512_DK_SIZE]; // test decapsulation key (1632 bytes)
+    const uint8_t ct[FIPS203IPD_KEM512_CT_SIZE]; // test ciphertext (768 bytes)
+    const uint8_t dk[FIPS203IPD_KEM512_DK_SIZE]; // test decapsulation key (1632 bytes)
     const uint8_t exp[32]; // expected message (32 bytes)
   } TESTS[] = {{
     .name = "0-pass",
@@ -11592,11 +11600,11 @@ static void test_fips203_kem512_decaps(void) {
     // decapsulate shared key from ciphertext `ct` using KEM512
     // decapsulation key `dk`, then store result in buffer `got`.
     uint8_t got[32] = { 0 };
-    fips203_kem512_decaps(got, TESTS[i].ct, TESTS[i].dk);
+    fips203ipd_kem512_decaps(got, TESTS[i].ct, TESTS[i].dk);
 
     // check for expected value
     if (memcmp(got, TESTS[i].exp, sizeof(got))) {
-      fprintf(stderr, "test_fips203_kem512_decaps(\"%s\") failed, got:\n", TESTS[i].name);
+      fprintf(stderr, "test_fips203ipd_kem512_decaps(\"%s\") failed, got:\n", TESTS[i].name);
       hex_write(stderr, got, sizeof(got));
       fprintf(stderr, "\nexp:\n");
       hex_write(stderr, TESTS[i].exp, sizeof(got));
@@ -11605,7 +11613,7 @@ static void test_fips203_kem512_decaps(void) {
   }
 }
 
-static void test_fips203_kem512_roundtrip(void) {
+static void test_fips203ipd_kem512_roundtrip(void) {
   uint8_t buf[96] = { 0 };
 
   for (size_t i = 0; i < NUM_ROUNDTRIP_TIMES; i++) {
@@ -11614,18 +11622,18 @@ static void test_fips203_kem512_roundtrip(void) {
     const uint8_t * const encaps_seed = buf + 64; // 32 bytes
 
     // generate encapsulation and decapsulation keys
-    uint8_t ek[FIPS203_KEM512_EK_SIZE] = { 0 };
-    uint8_t dk[FIPS203_KEM512_DK_SIZE] = { 0 };
-    fips203_kem512_keygen(ek, dk, keygen_seed);
+    uint8_t ek[FIPS203IPD_KEM512_EK_SIZE] = { 0 };
+    uint8_t dk[FIPS203IPD_KEM512_DK_SIZE] = { 0 };
+    fips203ipd_kem512_keygen(ek, dk, keygen_seed);
 
     // encapsulate, get key and ciphertext
     uint8_t k0[32] = { 0 };
-    uint8_t ct[FIPS203_KEM512_CT_SIZE] = { 0 };
-    fips203_kem512_encaps(k0, ct, ek, encaps_seed);
+    uint8_t ct[FIPS203IPD_KEM512_CT_SIZE] = { 0 };
+    fips203ipd_kem512_encaps(k0, ct, ek, encaps_seed);
 
     // decapsulate key from ciphertext
     uint8_t k1[32] = { 0 };
-    fips203_kem512_decaps(k1, ct, dk);
+    fips203ipd_kem512_decaps(k1, ct, dk);
 
     // verify that k0 == k1
     compare_keys(__func__, k0, k1, keygen_seed, encaps_seed);
@@ -12512,12 +12520,12 @@ static void test_pke768_decrypt(void) {
   }
 }
 
-static void test_fips203_kem768_keygen(void) {
+static void test_fips203ipd_kem768_keygen(void) {
   static const struct {
     const char *name; // test name
     const uint8_t seed[64]; // test seed
     const uint8_t exp_ek[PKE768_EK_SIZE]; // expected ek (1184 bytes)
-    const uint8_t exp_dk[FIPS203_KEM768_DK_SIZE]; // expected dk (2400 bytes)
+    const uint8_t exp_dk[FIPS203IPD_KEM768_DK_SIZE]; // expected dk (2400 bytes)
   } TESTS[] = {{
     .name = "all-zero",
     .seed = { 0 },
@@ -12830,12 +12838,12 @@ static void test_fips203_kem768_keygen(void) {
   for (size_t i = 0; i < sizeof(TESTS)/sizeof(TESTS[0]); i++) {
     // generate pke768 ek and dk from seed
     uint8_t got_ek[PKE768_EK_SIZE] = { 0 },
-            got_dk[FIPS203_KEM768_DK_SIZE] = { 0 };
-    fips203_kem768_keygen(got_ek, got_dk, TESTS[i].seed);
+            got_dk[FIPS203IPD_KEM768_DK_SIZE] = { 0 };
+    fips203ipd_kem768_keygen(got_ek, got_dk, TESTS[i].seed);
 
     // check for expected ek
     if (memcmp(&got_ek, &(TESTS[i].exp_ek), sizeof(got_ek))) {
-      fprintf(stderr, "test_fips203_kem768_keygen(\"%s\") ek check failed, got ek:\n", TESTS[i].name);
+      fprintf(stderr, "test_fips203ipd_kem768_keygen(\"%s\") ek check failed, got ek:\n", TESTS[i].name);
       hex_write(stderr, got_ek, sizeof(got_ek));
       fprintf(stderr, "\nexp ek:\n");
       hex_write(stderr, TESTS[i].exp_ek, sizeof(got_ek));
@@ -12844,7 +12852,7 @@ static void test_fips203_kem768_keygen(void) {
 
     // check for expected dk
     if (memcmp(&got_dk, &(TESTS[i].exp_dk), sizeof(got_dk))) {
-      fprintf(stderr, "test_fips203_kem768_keygen(\"%s\") dk check failed, got dk:\n", TESTS[i].name);
+      fprintf(stderr, "test_fips203ipd_kem768_keygen(\"%s\") dk check failed, got dk:\n", TESTS[i].name);
       hex_write(stderr, got_dk, sizeof(got_dk));
       fprintf(stderr, "\nexp dk:\n");
       hex_write(stderr, TESTS[i].exp_dk, sizeof(got_dk));
@@ -12853,13 +12861,13 @@ static void test_fips203_kem768_keygen(void) {
   }
 }
 
-static void test_fips203_kem768_encaps(void) {
+static void test_fips203ipd_kem768_encaps(void) {
   static const struct {
     const char *name; // test name
-    const uint8_t ek[FIPS203_KEM768_EK_SIZE]; // test encapsulation key (1184 bytes)
+    const uint8_t ek[FIPS203IPD_KEM768_EK_SIZE]; // test encapsulation key (1184 bytes)
     const uint8_t seed[32]; // test randomness (32 bytes)
     const uint8_t exp_k[32]; // expected shared key (32 bytes)
-    const uint8_t exp_ct[FIPS203_KEM768_CT_SIZE]; // expected ciphertext (1088 bytes)
+    const uint8_t exp_ct[FIPS203IPD_KEM768_CT_SIZE]; // expected ciphertext (1088 bytes)
   } TESTS[] = {{
     .name = "seed = 0",
     .ek = {
@@ -13070,12 +13078,12 @@ static void test_fips203_kem768_encaps(void) {
   for (size_t i = 0; i < sizeof(TESTS)/sizeof(TESTS[0]); i++) {
     // Generate shared key `got_k` and ciphertext `got_ct` for test
     // encapsulation key `ek` and randomness `seed`.
-    uint8_t got_k[32] = { 0 }, got_ct[FIPS203_KEM768_CT_SIZE] = { 0 };
-    fips203_kem768_encaps(got_k, got_ct, TESTS[i].ek, TESTS[i].seed);
+    uint8_t got_k[32] = { 0 }, got_ct[FIPS203IPD_KEM768_CT_SIZE] = { 0 };
+    fips203ipd_kem768_encaps(got_k, got_ct, TESTS[i].ek, TESTS[i].seed);
 
     // check for expected shared key
     if (memcmp(got_k, TESTS[i].exp_k, sizeof(got_k))) {
-      fprintf(stderr, "test_fips203_kem768_encaps(\"%s\") failed, got k:\n", TESTS[i].name);
+      fprintf(stderr, "test_fips203ipd_kem768_encaps(\"%s\") failed, got k:\n", TESTS[i].name);
       hex_write(stderr, got_k, sizeof(got_k));
       fprintf(stderr, "\nexp:\n");
       hex_write(stderr, TESTS[i].exp_k, sizeof(got_k));
@@ -13084,7 +13092,7 @@ static void test_fips203_kem768_encaps(void) {
 
     // check for expected ciphertext
     if (memcmp(got_ct, TESTS[i].exp_ct, sizeof(got_ct))) {
-      fprintf(stderr, "test_fips203_kem768_encaps(\"%s\") failed, got ct:\n", TESTS[i].name);
+      fprintf(stderr, "test_fips203ipd_kem768_encaps(\"%s\") failed, got ct:\n", TESTS[i].name);
       hex_write(stderr, got_ct, sizeof(got_ct));
       fprintf(stderr, "\nexp ct:\n");
       hex_write(stderr, TESTS[i].exp_ct, sizeof(got_ct));
@@ -13093,11 +13101,11 @@ static void test_fips203_kem768_encaps(void) {
   }
 }
 
-static void test_fips203_kem768_decaps(void) {
+static void test_fips203ipd_kem768_decaps(void) {
   static const struct {
     const char *name; // test name
-    const uint8_t ct[FIPS203_KEM768_CT_SIZE]; // test ciphertext (1088 bytes)
-    const uint8_t dk[FIPS203_KEM768_DK_SIZE]; // test decapsulation key (2400 bytes)
+    const uint8_t ct[FIPS203IPD_KEM768_CT_SIZE]; // test ciphertext (1088 bytes)
+    const uint8_t dk[FIPS203IPD_KEM768_DK_SIZE]; // test decapsulation key (2400 bytes)
     const uint8_t exp[32]; // expected message (32 bytes)
   } TESTS[] = {{
     .name = "0-pass",
@@ -14635,11 +14643,11 @@ static void test_fips203_kem768_decaps(void) {
     // decapsulate shared key from ciphertext `ct` using KEM768
     // decapsulation key `dk`, then store result in buffer `got`.
     uint8_t got[32] = { 0 };
-    fips203_kem768_decaps(got, TESTS[i].ct, TESTS[i].dk);
+    fips203ipd_kem768_decaps(got, TESTS[i].ct, TESTS[i].dk);
 
     // check for expected value
     if (memcmp(got, TESTS[i].exp, sizeof(got))) {
-      fprintf(stderr, "test_fips203_kem768_decaps(\"%s\") failed, got:\n", TESTS[i].name);
+      fprintf(stderr, "test_fips203ipd_kem768_decaps(\"%s\") failed, got:\n", TESTS[i].name);
       hex_write(stderr, got, sizeof(got));
       fprintf(stderr, "\nexp:\n");
       hex_write(stderr, TESTS[i].exp, sizeof(got));
@@ -14648,7 +14656,7 @@ static void test_fips203_kem768_decaps(void) {
   }
 }
 
-static void test_fips203_kem768_roundtrip(void) {
+static void test_fips203ipd_kem768_roundtrip(void) {
   uint8_t buf[96] = { 0 };
 
   for (size_t i = 0; i < NUM_ROUNDTRIP_TIMES; i++) {
@@ -14657,18 +14665,18 @@ static void test_fips203_kem768_roundtrip(void) {
     const uint8_t * const encaps_seed = buf + 64; // 32 bytes
 
     // generate encapsulation and decapsulation keys
-    uint8_t ek[FIPS203_KEM768_EK_SIZE] = { 0 };
-    uint8_t dk[FIPS203_KEM768_DK_SIZE] = { 0 };
-    fips203_kem768_keygen(ek, dk, keygen_seed);
+    uint8_t ek[FIPS203IPD_KEM768_EK_SIZE] = { 0 };
+    uint8_t dk[FIPS203IPD_KEM768_DK_SIZE] = { 0 };
+    fips203ipd_kem768_keygen(ek, dk, keygen_seed);
 
     // encapsulate, get key and ciphertext
     uint8_t k0[32] = { 0 };
-    uint8_t ct[FIPS203_KEM768_CT_SIZE] = { 0 };
-    fips203_kem768_encaps(k0, ct, ek, encaps_seed);
+    uint8_t ct[FIPS203IPD_KEM768_CT_SIZE] = { 0 };
+    fips203ipd_kem768_encaps(k0, ct, ek, encaps_seed);
 
     // decapsulate key from ciphertext
     uint8_t k1[32] = { 0 };
-    fips203_kem768_decaps(k1, ct, dk);
+    fips203ipd_kem768_decaps(k1, ct, dk);
 
     // verify that k0 == k1
     compare_keys(__func__, k0, k1, keygen_seed, encaps_seed);
@@ -15783,12 +15791,12 @@ static void test_pke1024_decrypt(void) {
   }
 }
 
-static void test_fips203_kem1024_keygen(void) {
+static void test_fips203ipd_kem1024_keygen(void) {
   static const struct {
     const char *name; // test name
     const uint8_t seed[64]; // test seed
     const uint8_t exp_ek[PKE1024_EK_SIZE]; // expected ek (1568 bytes)
-    const uint8_t exp_dk[FIPS203_KEM1024_DK_SIZE]; // expected dk (3168 bytes)
+    const uint8_t exp_dk[FIPS203IPD_KEM1024_DK_SIZE]; // expected dk (3168 bytes)
   } TESTS[] = {{
     .name = "all-zero",
     .seed = { 0 },
@@ -16197,12 +16205,12 @@ static void test_fips203_kem1024_keygen(void) {
   for (size_t i = 0; i < sizeof(TESTS)/sizeof(TESTS[0]); i++) {
     // generate pke1024 ek and dk from seed
     uint8_t got_ek[PKE1024_EK_SIZE] = { 0 },
-            got_dk[FIPS203_KEM1024_DK_SIZE] = { 0 };
-    fips203_kem1024_keygen(got_ek, got_dk, TESTS[i].seed);
+            got_dk[FIPS203IPD_KEM1024_DK_SIZE] = { 0 };
+    fips203ipd_kem1024_keygen(got_ek, got_dk, TESTS[i].seed);
 
     // check for expected ek
     if (memcmp(&got_ek, &(TESTS[i].exp_ek), sizeof(got_ek))) {
-      fprintf(stderr, "test_fips203_kem1024_keygen(\"%s\") ek check failed, got ek:\n", TESTS[i].name);
+      fprintf(stderr, "test_fips203ipd_kem1024_keygen(\"%s\") ek check failed, got ek:\n", TESTS[i].name);
       hex_write(stderr, got_ek, sizeof(got_ek));
       fprintf(stderr, "\nexp ek:\n");
       hex_write(stderr, TESTS[i].exp_ek, sizeof(got_ek));
@@ -16211,7 +16219,7 @@ static void test_fips203_kem1024_keygen(void) {
 
     // check for expected dk
     if (memcmp(&got_dk, &(TESTS[i].exp_dk), sizeof(got_dk))) {
-      fprintf(stderr, "test_fips203_kem1024_keygen(\"%s\") dk check failed, got dk:\n", TESTS[i].name);
+      fprintf(stderr, "test_fips203ipd_kem1024_keygen(\"%s\") dk check failed, got dk:\n", TESTS[i].name);
       hex_write(stderr, got_dk, sizeof(got_dk));
       fprintf(stderr, "\nexp dk:\n");
       hex_write(stderr, TESTS[i].exp_dk, sizeof(got_dk));
@@ -16220,13 +16228,13 @@ static void test_fips203_kem1024_keygen(void) {
   }
 }
 
-static void test_fips203_kem1024_encaps(void) {
+static void test_fips203ipd_kem1024_encaps(void) {
   static const struct {
     const char *name; // test name
-    const uint8_t ek[FIPS203_KEM1024_EK_SIZE]; // test encapsulation key (1568 bytes)
+    const uint8_t ek[FIPS203IPD_KEM1024_EK_SIZE]; // test encapsulation key (1568 bytes)
     const uint8_t seed[32]; // test randomness (32 bytes)
     const uint8_t exp_k[32]; // expected shared key (32 bytes)
-    const uint8_t exp_ct[FIPS203_KEM1024_CT_SIZE]; // expected ciphertext (1088 bytes)
+    const uint8_t exp_ct[FIPS203IPD_KEM1024_CT_SIZE]; // expected ciphertext (1088 bytes)
   } TESTS[] = {{
     .name = "seed = 0",
     .ek = {
@@ -16509,12 +16517,12 @@ static void test_fips203_kem1024_encaps(void) {
   for (size_t i = 0; i < sizeof(TESTS)/sizeof(TESTS[0]); i++) {
     // Generate shared key `got_k` and ciphertext `got_ct` for test
     // encapsulation key `ek` and randomness `seed`.
-    uint8_t got_k[32] = { 0 }, got_ct[FIPS203_KEM1024_CT_SIZE] = { 0 };
-    fips203_kem1024_encaps(got_k, got_ct, TESTS[i].ek, TESTS[i].seed);
+    uint8_t got_k[32] = { 0 }, got_ct[FIPS203IPD_KEM1024_CT_SIZE] = { 0 };
+    fips203ipd_kem1024_encaps(got_k, got_ct, TESTS[i].ek, TESTS[i].seed);
 
     // check for expected shared key
     if (memcmp(got_k, TESTS[i].exp_k, sizeof(got_k))) {
-      fprintf(stderr, "test_fips203_kem1024_encaps(\"%s\") failed, got k:\n", TESTS[i].name);
+      fprintf(stderr, "test_fips203ipd_kem1024_encaps(\"%s\") failed, got k:\n", TESTS[i].name);
       hex_write(stderr, got_k, sizeof(got_k));
       fprintf(stderr, "\nexp:\n");
       hex_write(stderr, TESTS[i].exp_k, sizeof(got_k));
@@ -16523,7 +16531,7 @@ static void test_fips203_kem1024_encaps(void) {
 
     // check for expected ciphertext
     if (memcmp(got_ct, TESTS[i].exp_ct, sizeof(got_ct))) {
-      fprintf(stderr, "test_fips203_kem1024_encaps(\"%s\") failed, got ct:\n", TESTS[i].name);
+      fprintf(stderr, "test_fips203ipd_kem1024_encaps(\"%s\") failed, got ct:\n", TESTS[i].name);
       hex_write(stderr, got_ct, sizeof(got_ct));
       fprintf(stderr, "\nexp ct:\n");
       hex_write(stderr, TESTS[i].exp_ct, sizeof(got_ct));
@@ -16532,11 +16540,11 @@ static void test_fips203_kem1024_encaps(void) {
   }
 }
 
-static void test_fips203_kem1024_decaps(void) {
+static void test_fips203ipd_kem1024_decaps(void) {
   static const struct {
     const char *name; // test name
-    const uint8_t ct[FIPS203_KEM1024_CT_SIZE]; // test ciphertext (1568 bytes)
-    const uint8_t dk[FIPS203_KEM1024_DK_SIZE]; // test decapsulation key (3168 bytes)
+    const uint8_t ct[FIPS203IPD_KEM1024_CT_SIZE]; // test ciphertext (1568 bytes)
+    const uint8_t dk[FIPS203IPD_KEM1024_DK_SIZE]; // test decapsulation key (3168 bytes)
     const uint8_t exp[32]; // expected message (32 bytes)
   } TESTS[] = {{
     .name = "0-pass",
@@ -18594,11 +18602,11 @@ static void test_fips203_kem1024_decaps(void) {
     // decapsulate shared key from ciphertext `ct` using KEM768
     // decapsulation key `dk`, then store result in buffer `got`.
     uint8_t got[32] = { 0 };
-    fips203_kem1024_decaps(got, TESTS[i].ct, TESTS[i].dk);
+    fips203ipd_kem1024_decaps(got, TESTS[i].ct, TESTS[i].dk);
 
     // check for expected value
     if (memcmp(got, TESTS[i].exp, sizeof(got))) {
-      fprintf(stderr, "test_fips203_kem1024_decaps(\"%s\") failed, got:\n", TESTS[i].name);
+      fprintf(stderr, "test_fips203ipd_kem1024_decaps(\"%s\") failed, got:\n", TESTS[i].name);
       hex_write(stderr, got, sizeof(got));
       fprintf(stderr, "\nexp:\n");
       hex_write(stderr, TESTS[i].exp, sizeof(got));
@@ -18607,7 +18615,7 @@ static void test_fips203_kem1024_decaps(void) {
   }
 }
 
-static void test_fips203_kem1024_roundtrip(void) {
+static void test_fips203ipd_kem1024_roundtrip(void) {
   uint8_t buf[96] = { 0 };
 
   for (size_t i = 0; i < NUM_ROUNDTRIP_TIMES; i++) {
@@ -18616,18 +18624,18 @@ static void test_fips203_kem1024_roundtrip(void) {
     const uint8_t * const encaps_seed = buf + 64; // 32 bytes
 
     // generate encapsulation and decapsulation keys
-    uint8_t ek[FIPS203_KEM1024_EK_SIZE] = { 0 };
-    uint8_t dk[FIPS203_KEM1024_DK_SIZE] = { 0 };
-    fips203_kem1024_keygen(ek, dk, keygen_seed);
+    uint8_t ek[FIPS203IPD_KEM1024_EK_SIZE] = { 0 };
+    uint8_t dk[FIPS203IPD_KEM1024_DK_SIZE] = { 0 };
+    fips203ipd_kem1024_keygen(ek, dk, keygen_seed);
 
     // encapsulate, get key and ciphertext
     uint8_t k0[32] = { 0 };
-    uint8_t ct[FIPS203_KEM1024_CT_SIZE] = { 0 };
-    fips203_kem1024_encaps(k0, ct, ek, encaps_seed);
+    uint8_t ct[FIPS203IPD_KEM1024_CT_SIZE] = { 0 };
+    fips203ipd_kem1024_encaps(k0, ct, ek, encaps_seed);
 
     // decapsulate key from ciphertext
     uint8_t k1[32] = { 0 };
-    fips203_kem1024_decaps(k1, ct, dk);
+    fips203ipd_kem1024_decaps(k1, ct, dk);
 
     // verify that k0 == k1
     compare_keys(__func__, k0, k1, keygen_seed, encaps_seed);
@@ -18661,10 +18669,10 @@ int main(void) {
   test_pke512_keygen();
   test_pke512_encrypt();
   test_pke512_decrypt();
-  test_fips203_kem512_keygen();
-  test_fips203_kem512_encaps();
-  test_fips203_kem512_decaps();
-  test_fips203_kem512_roundtrip();
+  test_fips203ipd_kem512_keygen();
+  test_fips203ipd_kem512_encaps();
+  test_fips203ipd_kem512_decaps();
+  test_fips203ipd_kem512_roundtrip();
   test_mat3_mul();
   test_vec3_add();
   test_vec3_dot();
@@ -18672,10 +18680,10 @@ int main(void) {
   test_pke768_keygen();
   test_pke768_encrypt();
   test_pke768_decrypt();
-  test_fips203_kem768_keygen();
-  test_fips203_kem768_encaps();
-  test_fips203_kem768_decaps();
-  test_fips203_kem768_roundtrip();
+  test_fips203ipd_kem768_keygen();
+  test_fips203ipd_kem768_encaps();
+  test_fips203ipd_kem768_decaps();
+  test_fips203ipd_kem768_roundtrip();
   test_mat4_mul();
   test_vec4_add();
   test_vec4_dot();
@@ -18683,9 +18691,9 @@ int main(void) {
   test_pke1024_keygen();
   test_pke1024_encrypt();
   test_pke1024_decrypt();
-  test_fips203_kem1024_keygen();
-  test_fips203_kem1024_encaps();
-  test_fips203_kem1024_decaps();
-  test_fips203_kem1024_roundtrip();
+  test_fips203ipd_kem1024_keygen();
+  test_fips203ipd_kem1024_encaps();
+  test_fips203ipd_kem1024_decaps();
+  test_fips203ipd_kem1024_roundtrip();
 }
-#endif // TEST_FIPS203
+#endif // TEST_FIPS203IPD

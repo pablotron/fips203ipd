@@ -42,7 +42,7 @@ static void rand_bytes(void * const buf, const size_t len) {
 // Prints an error message and exits with an error code if the keys are
 // not equal.
 static void compare_keys(const char *func, const uint8_t k0[static 32], const uint8_t k1[static 32], const seeds_t * const seeds) {
-  // compare keys
+  // compare keys (note: not constant-time)
   if (memcmp(k0, k1, 32)) {
     fprintf(stderr, "%s: k0 != k1:\nk0 = ", func);
     hex_write(stderr, k0, 32);

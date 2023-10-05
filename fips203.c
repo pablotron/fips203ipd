@@ -25,11 +25,14 @@
 #define PKE768_DK_SIZE (384 * PKE768_K)
 #define PKE768_CT_SIZE (32 * (PKE768_DU * PKE768_K + PKE768_DV))
 
-#define FIPS203_KEM1024 4
-#define FIPS203_KEM1024_ETA1 2
-#define FIPS203_KEM1024_ETA2 2
-#define FIPS203_KEM1024_DU 11
-#define FIPS203_KEM1024_DV 5
+#define PKE1024 4
+#define PKE1024_ETA1 2
+#define PKE1024_ETA2 2
+#define PKE1024_DU 11
+#define PKE1024_DV 5
+#define PKE1024_EK_SIZE (384 * PKE768_K + 32)
+#define PKE1024_DK_SIZE (384 * PKE768_K)
+#define PKE1024_CT_SIZE (32 * (PKE768_DU * PKE768_K + PKE768_DV))
 
 // Returns true if `x` is between `lo` and `hi` (inclusive).
 // (used by poly_encode_*() and poly_decode_*() functions)

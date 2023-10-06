@@ -16,10 +16,20 @@ Notes:
 Use `make` to build a minimal sample application, and `make test` to run
 the test suite.
 
+## Examples
+
+The top-level file `main.c` is a simple application which runs KEM512,
+KEM768, and KEM1024 self tests.
+
+A minimal example application which does a single key exchange with
+KEM512 in available as `examples/0-hello-kem/`.
+
+API documentation is available in `fips203ipd.h`.
+
 ## References
 
-* [FIPS 202 - SHA-3 Standard: Permutation-Based Hash and Extendable-Output Functions][fips202]
-* [FIPS 203 (IPD):Module-Lattice-Based Key-Encapsulation Mechanism Standard][fips203ipd]
+* [FIPS 202: SHA-3 Standard: Permutation-Based Hash and Extendable-Output Functions][fips202]
+* [FIPS 203 (IPD): Module-Lattice-Based Key-Encapsulation Mechanism Standard][fips203ipd]
 
 [c11]: https://en.wikipedia.org/wiki/C11_(C_standard_revision)
   "ISO/IEC 9899:2011"

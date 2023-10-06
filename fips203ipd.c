@@ -7984,25 +7984,12 @@ void fips203ipd_kem1024_decaps(uint8_t k[static 32], const uint8_t ct[static FIP
 #include <stdlib.h> // exit()
 #include <stdio.h> // fprintf()
 #include <stddef.h> // size_t
-#include <sys/random.h> // getrandom() (used by rand_bytes())
-#include <err.h> // errx() (used by rand_bytes())
+#include "rand-bytes.h" // rand_bytes()
 #include "hex.h" // hex_write()
 
 // number of iterations in `test_fips203ipd_*_roundtrip()` tests
 // (keep this relatively low so test suite doesn't take forever)
 #define NUM_ROUNDTRIP_TIMES 10
-
-// Fill `buf` with `len` random bytes using `getrandom()`.
-//
-// Prints an error and exits with an error code if `len` random bytes
-// could not be read.
-static void rand_bytes(uint8_t * const buf, const size_t len) {
-  const ssize_t got = getrandom(buf, len, 0);
-  if (got < (ssize_t) len) {
-    // print error message, exit with failure
-    errx(-1, "read %zu bytes from getrandom() failed", len);
-  }
-}
 
 // Verify that shared keys `k0` and `k1` are equal.
 //

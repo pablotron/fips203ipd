@@ -1,3 +1,11 @@
+/**
+ * fips203ipd.h: C11 implementation of the KEM512, KEM768, and KEM1024
+ * parameter sets from the FIPS 203 initial public draft (IPD).
+ *
+ * Copyright (c) 2023 Paul Duncan
+ * SPDX-License-Identifier: MIT-0
+ */
+
 #ifndef FIPS203IPD_H
 #define FIPS203IPD_H
 

@@ -2,6 +2,28 @@
 // hello.c: minimal example of a client and server generating a shared
 // secret with KEM512.
 //
+// Build by typing `make`.
+//
+// Example:
+//
+//   > ./hello
+//   client: keygen random (64 bytes) = 30c3e7dfac ... (omitted) ... fecd87f3f
+//   client: generated encapsulation key `ek` and decapsulation key `dk`:
+//   client: ek (800 bytes) = d0f3b03e67 ... (omitted) ... 2da8295829
+//   client: dk (1632 bytes) = 4af498a252 ... (omitted) ... b434abe9e
+//   client: sending encapsulation key `ek` to server
+//
+//   server: encaps random (32 bytes) = b0b41f41da8ed5ee232c9e5683e471cf47fa710db40877d9ade99d8215f5677b
+//   server: generated secret `s_key` and ciphertext `ct`:
+//   server: s_key (32 bytes) = 1c002c91184f5e79fe99276fc22d05fb8b6ccdbfa2b95fe30eee359243a62ed7
+//   server: ct (768 bytes) = f3bcd0755 ... (omitted) ... f22d03a0c
+//   server: sending ciphertext `ct` to client
+//
+//   client: used `dk` to decapsulate secret from `ct` into `c_key`:
+//   client: c_key (32 bytes) = 1c002c91184f5e79fe99276fc22d05fb8b6ccdbfa2b95fe30eee359243a62ed7
+//
+//   SUCCESS! client secret `c_key` and server secret `s_key` match.
+//
 
 #include <stdio.h> // fputs()
 #include <string.h> // memcmp()

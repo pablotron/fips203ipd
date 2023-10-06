@@ -1,6 +1,7 @@
 *.o
 test-fips203ipd
 example-fips203ipd
+examples/0-hello-kem/hello
 scripts/sample-ntt/sample-ntt
 scripts/sample-cbd/sample-cbd
 scripts/prf/prf

@@ -7922,7 +7922,7 @@ void fips203ipd_kem1024_keygen(uint8_t ek[static FIPS203IPD_KEM1024_EK_SIZE], ui
  *
  * @param[out] k Shared key (32 bytes).
  * @param[out] ct Ciphertext (1568 bytes).
- * @param[in] ek KEM768 encapsulation key (1568 bytes).
+ * @param[in] ek KEM1024 encapsulation key (1568 bytes).
  * @param[in] seed Random seed (32 bytes).
  */
 void fips203ipd_kem1024_encaps(uint8_t k[static 32], uint8_t ct[static FIPS203IPD_KEM1024_CT_SIZE], const uint8_t ek[static FIPS203IPD_KEM1024_EK_SIZE], const uint8_t seed[static 32]) {
@@ -7944,7 +7944,7 @@ void fips203ipd_kem1024_encaps(uint8_t k[static 32], uint8_t ct[static FIPS203IP
  *
  * @param[out] k Shared key (32 bytes).
  * @param[out] ct Ciphertext (1568 bytes).
- * @param[in] dk_kem KEM768 decapsulation key (3168 bytes).
+ * @param[in] dk_kem KEM1024 decapsulation key (3168 bytes).
  */
 void fips203ipd_kem1024_decaps(uint8_t k[static 32], const uint8_t ct[static FIPS203IPD_KEM1024_CT_SIZE], const uint8_t dk_kem[static FIPS203IPD_KEM1024_DK_SIZE]) {
   const uint8_t * const dk_pke = dk_kem;

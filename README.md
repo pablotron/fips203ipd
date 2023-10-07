@@ -1,7 +1,7 @@
 # fips203ipd
 
 [C11][] implementation of the KEM512, KEM768, and KEM1024 parameter sets
-from the [initial FIPS 203 initial public draft (IPD)][fips203ipd].
+from the [FIPS 203 initial public draft (IPD)][fips203ipd].
 
 [FIPS 203][fips203ipd] is (or will be) [NIST's][nist] standardized
 version of [Kyber][], a post-quantum [key encapsulation mechanism

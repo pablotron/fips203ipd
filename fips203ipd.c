@@ -6,6 +6,8 @@
 // from the FIPS 203 initial public draft (IPD).
 //
 
+/** @cond INTERNAL */
+
 #include <stdbool.h> // bool
 #include <stddef.h> // size_t
 #include <stdint.h> // uint8_t
@@ -18684,3 +18686,5 @@ int main(void) {
   test_fips203ipd_kem1024_roundtrip();
 }
 #endif // TEST_FIPS203IPD
+
+/** @endcond INTERNAL */

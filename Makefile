@@ -20,5 +20,9 @@ $(APP): $(APP_OBJS)
 test:
 	$(CC) -o $(TEST_APP) $(TEST_CFLAGS) -DTEST_FIPS203IPD sha3.c fips203ipd.c && $(TEST_APP)
 
+# build api documentation
+doc:
+	doxygen fips203ipd.h
+
 clean:
 	$(RM) -f $(APP) $(APP_OBJS) $(TEST_APP)

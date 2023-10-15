@@ -53,6 +53,9 @@
  * @param[out] dk KEM512 decapsulation key (1632 bytes).
  * @param[in] seed Random seed (64 bytes).
  *
+ * Example:
+ * @snippet{trimleft} 1-all-three/all-three.c kem512-keygen
+ *
  * [csprng]: https://en.wikipedia.org/wiki/Cryptographically_secure_pseudorandom_number_generator
  *   "Cryptographically Secure Pseudorandom Number Generator (CSPRNG)"
  * [fips203ipd]: https://csrc.nist.gov/pubs/fips/203/ipd
@@ -76,6 +79,9 @@ void fips203ipd_kem512_keygen(uint8_t ek[static FIPS203IPD_KEM512_EK_SIZE], uint
  * @param[in] ek KEM512 encapsulation key (800 bytes).
  * @param[in] seed Random seed (32 bytes).
  *
+ * Example:
+ * @snippet{trimleft} 1-all-three/all-three.c kem512-encaps
+ *
  * [csprng]: https://en.wikipedia.org/wiki/Cryptographically_secure_pseudorandom_number_generator
  *   "Cryptographically Secure Pseudorandom Number Generator (CSPRNG)"
  * [fips203ipd]: https://csrc.nist.gov/pubs/fips/203/ipd
@@ -91,6 +97,9 @@ void fips203ipd_kem512_encaps(uint8_t key[static 32], uint8_t ct[static FIPS203I
  * @param[out] key Shared key (32 bytes).
  * @param[out] ct Ciphertext (768 bytes).
  * @param[in] dk KEM512 decapsulation key (1632 bytes).
+ *
+ * Example:
+ * @snippet{trimleft} 1-all-three/all-three.c kem512-decaps
  */
 void fips203ipd_kem512_decaps(uint8_t key[static 32], const uint8_t ct[static FIPS203IPD_KEM512_CT_SIZE], const uint8_t dk[static FIPS203IPD_KEM512_DK_SIZE]);
 
@@ -132,6 +141,9 @@ void fips203ipd_kem512_decaps(uint8_t key[static 32], const uint8_t ct[static FI
  * @param[out] dk KEM768 decapsulation key (2400 bytes).
  * @param[in] seed Random seed (64 bytes).
  *
+ * Example:
+ * @snippet{trimleft} 1-all-three/all-three.c kem768-keygen
+ *
  * [csprng]: https://en.wikipedia.org/wiki/Cryptographically_secure_pseudorandom_number_generator
  *   "Cryptographically Secure Pseudorandom Number Generator (CSPRNG)"
  * [fips203ipd]: https://csrc.nist.gov/pubs/fips/203/ipd
@@ -155,6 +167,9 @@ void fips203ipd_kem768_keygen(uint8_t ek[static FIPS203IPD_KEM768_EK_SIZE], uint
  * @param[in] ek KEM768 encapsulation key (1184 bytes).
  * @param[in] seed Random seed (32 bytes).
  *
+ * Example:
+ * @snippet{trimleft} 1-all-three/all-three.c kem768-encaps
+ *
  * [csprng]: https://en.wikipedia.org/wiki/Cryptographically_secure_pseudorandom_number_generator
  *   "Cryptographically Secure Pseudorandom Number Generator (CSPRNG)"
  * [fips203ipd]: https://csrc.nist.gov/pubs/fips/203/ipd
@@ -170,6 +185,9 @@ void fips203ipd_kem768_encaps(uint8_t key[static 32], uint8_t ct[static FIPS203I
  * @param[out] key Shared key (32 bytes).
  * @param[out] ct Ciphertext (1088 bytes).
  * @param[in] dk KEM768 decapsulation key (2400 bytes).
+ *
+ * Example:
+ * @snippet{trimleft} 1-all-three/all-three.c kem768-decaps
  */
 void fips203ipd_kem768_decaps(uint8_t key[static 32], const uint8_t ct[static FIPS203IPD_KEM768_CT_SIZE], const uint8_t dk[static FIPS203IPD_KEM768_DK_SIZE]);
 
@@ -211,6 +229,9 @@ void fips203ipd_kem768_decaps(uint8_t key[static 32], const uint8_t ct[static FI
  * @param[out] dk KEM1024 decapsulation key (3168 bytes).
  * @param[in] seed Random seed (64 bytes).
  *
+ * Example:
+ * @snippet{trimleft} 1-all-three/all-three.c kem1024-keygen
+ *
  * [csprng]: https://en.wikipedia.org/wiki/Cryptographically_secure_pseudorandom_number_generator
  *   "Cryptographically Secure Pseudorandom Number Generator (CSPRNG)"
  * [fips203ipd]: https://csrc.nist.gov/pubs/fips/203/ipd
@@ -234,6 +255,9 @@ void fips203ipd_kem1024_keygen(uint8_t ek[static FIPS203IPD_KEM1024_EK_SIZE], ui
  * @param[in] ek KEM1024 encapsulation key (1568 bytes).
  * @param[in] seed Random seed (32 bytes).
  *
+ * Example:
+ * @snippet{trimleft} 1-all-three/all-three.c kem1024-encaps
+ *
  * [csprng]: https://en.wikipedia.org/wiki/Cryptographically_secure_pseudorandom_number_generator
  *   "Cryptographically Secure Pseudorandom Number Generator (CSPRNG)"
  * [fips203ipd]: https://csrc.nist.gov/pubs/fips/203/ipd
@@ -249,6 +273,9 @@ void fips203ipd_kem1024_encaps(uint8_t key[static 32], uint8_t ct[static FIPS203
  * @param[out] key Shared key (32 bytes).
  * @param[out] ct Ciphertext (1568 bytes).
  * @param[in] dk KEM1024 decapsulation key (3168 bytes).
+ *
+ * Example:
+ * @snippet{trimleft} 1-all-three/all-three.c kem1024-decaps
  */
 void fips203ipd_kem1024_decaps(uint8_t key[static 32], const uint8_t ct[static FIPS203IPD_KEM1024_CT_SIZE], const uint8_t dk[static FIPS203IPD_KEM1024_DK_SIZE]);
 

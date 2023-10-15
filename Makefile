@@ -22,7 +22,7 @@ test:
 
 # build api documentation
 doc:
-	doxygen fips203ipd.h
+	doxygen
 
 clean:
 	$(RM) -f $(APP) $(APP_OBJS) $(TEST_APP)

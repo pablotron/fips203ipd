@@ -97,7 +97,7 @@ int main(void) {
 
   // alice:
   // 1. get ciphertext `ct` from bob.
-  // 2. use decapsultion key `dk` to decapsulate shared secret from `ct`.
+  // 2. use decapsulation key `dk` to decapsulate shared secret from `ct`.
   // 2. store shared secret in `a_key`.
   uint8_t a_key[32] = { 0 };
   fips203ipd_kem512_decaps(a_key, ct, dk);

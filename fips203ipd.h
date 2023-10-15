@@ -54,23 +54,23 @@ void fips203ipd_kem512_keygen(uint8_t ek[static FIPS203IPD_KEM512_EK_SIZE], uint
  * encapsulation key `ek` and randomness `seed`.
  * @ingroup kem512
  *
- * @param[out] k Shared key (32 bytes).
+ * @param[out] key Shared key (32 bytes).
  * @param[out] ct Ciphertext (768 bytes).
  * @param[in] ek KEM512 encapsulation key (800 bytes).
  * @param[in] seed Random seed (32 bytes).
  */
-void fips203ipd_kem512_encaps(uint8_t k[static 32], uint8_t ct[static FIPS203IPD_KEM512_CT_SIZE], const uint8_t ek[static FIPS203IPD_KEM512_EK_SIZE], const uint8_t seed[static 32]);
+void fips203ipd_kem512_encaps(uint8_t key[static 32], uint8_t ct[static FIPS203IPD_KEM512_CT_SIZE], const uint8_t ek[static FIPS203IPD_KEM512_EK_SIZE], const uint8_t seed[static 32]);
 
 /**
  * @brief Decapsulate shared key `k` from ciphertext `ct` using KEM512
- * decapsulation key `dk_kem` with implicit rejection.
+ * decapsulation key `dk` with implicit rejection.
  * @ingroup kem512
  *
- * @param[out] k Shared key (32 bytes).
+ * @param[out] key Shared key (32 bytes).
  * @param[out] ct Ciphertext (768 bytes).
- * @param[in] dk_kem KEM512 decapsulation key (1632 bytes).
+ * @param[in] dk KEM512 decapsulation key (1632 bytes).
  */
-void fips203ipd_kem512_decaps(uint8_t k[static 32], const uint8_t ct[static FIPS203IPD_KEM512_CT_SIZE], const uint8_t dk_kem[static FIPS203IPD_KEM512_DK_SIZE]);
+void fips203ipd_kem512_decaps(uint8_t key[static 32], const uint8_t ct[static FIPS203IPD_KEM512_CT_SIZE], const uint8_t dk[static FIPS203IPD_KEM512_DK_SIZE]);
 
 /**
  * @defgroup kem768 KEM768
@@ -111,23 +111,23 @@ void fips203ipd_kem768_keygen(uint8_t ek[static FIPS203IPD_KEM768_EK_SIZE], uint
  * encapsulation key `ek` and randomness `seed`.
  * @ingroup kem768
  *
- * @param[out] k Shared key (32 bytes).
+ * @param[out] key Shared key (32 bytes).
  * @param[out] ct Ciphertext (1088 bytes).
  * @param[in] ek KEM768 encapsulation key (1184 bytes).
  * @param[in] seed Random seed (32 bytes).
  */
-void fips203ipd_kem768_encaps(uint8_t k[static 32], uint8_t ct[static FIPS203IPD_KEM768_CT_SIZE], const uint8_t ek[static FIPS203IPD_KEM768_EK_SIZE], const uint8_t seed[static 32]);
+void fips203ipd_kem768_encaps(uint8_t key[static 32], uint8_t ct[static FIPS203IPD_KEM768_CT_SIZE], const uint8_t ek[static FIPS203IPD_KEM768_EK_SIZE], const uint8_t seed[static 32]);
 
 /**
  * @brief Decapsulate shared key `k` from ciphertext `ct` using KEM768
- * decapsulation key `dk_kem` with implicit rejection.
+ * decapsulation key `dk` with implicit rejection.
  * @ingroup kem768
  *
- * @param[out] k Shared key (32 bytes).
+ * @param[out] key Shared key (32 bytes).
  * @param[out] ct Ciphertext (1088 bytes).
- * @param[in] dk_kem KEM768 decapsulation key (2400 bytes).
+ * @param[in] dk KEM768 decapsulation key (2400 bytes).
  */
-void fips203ipd_kem768_decaps(uint8_t k[static 32], const uint8_t ct[static FIPS203IPD_KEM768_CT_SIZE], const uint8_t dk_kem[static FIPS203IPD_KEM768_DK_SIZE]);
+void fips203ipd_kem768_decaps(uint8_t key[static 32], const uint8_t ct[static FIPS203IPD_KEM768_CT_SIZE], const uint8_t dk[static FIPS203IPD_KEM768_DK_SIZE]);
 
 /**
  * @defgroup kem1024 KEM1024
@@ -168,22 +168,22 @@ void fips203ipd_kem1024_keygen(uint8_t ek[static FIPS203IPD_KEM1024_EK_SIZE], ui
  * encapsulation key `ek` and randomness `seed`.
  * @ingroup KEM1024
  *
- * @param[out] k Shared key (32 bytes).
+ * @param[out] key Shared key (32 bytes).
  * @param[out] ct Ciphertext (1568 bytes).
  * @param[in] ek KEM1024 encapsulation key (1568 bytes).
  * @param[in] seed Random seed (32 bytes).
  */
-void fips203ipd_kem1024_encaps(uint8_t k[static 32], uint8_t ct[static FIPS203IPD_KEM1024_CT_SIZE], const uint8_t ek[static FIPS203IPD_KEM1024_EK_SIZE], const uint8_t seed[static 32]);
+void fips203ipd_kem1024_encaps(uint8_t key[static 32], uint8_t ct[static FIPS203IPD_KEM1024_CT_SIZE], const uint8_t ek[static FIPS203IPD_KEM1024_EK_SIZE], const uint8_t seed[static 32]);
 
 /**
  * @brief Decapsulate shared key `k` from ciphertext `ct` using KEM1024
- * decapsulation key `dk_kem` with implicit rejection.
+ * decapsulation key `dk` with implicit rejection.
  * @ingroup KEM1024
  *
- * @param[out] k Shared key (32 bytes).
+ * @param[out] key Shared key (32 bytes).
  * @param[out] ct Ciphertext (1568 bytes).
- * @param[in] dk_kem KEM1024 decapsulation key (3168 bytes).
+ * @param[in] dk KEM1024 decapsulation key (3168 bytes).
  */
-void fips203ipd_kem1024_decaps(uint8_t k[static 32], const uint8_t ct[static FIPS203IPD_KEM1024_CT_SIZE], const uint8_t dk_kem[static FIPS203IPD_KEM1024_DK_SIZE]);
+void fips203ipd_kem1024_decaps(uint8_t key[static 32], const uint8_t ct[static FIPS203IPD_KEM1024_CT_SIZE], const uint8_t dk[static FIPS203IPD_KEM1024_DK_SIZE]);
 
 #endif /* FIPS203IPD_H */

@@ -74,6 +74,10 @@ void fips203ipd_kem512_keygen(uint8_t ek[static FIPS203IPD_KEM512_EK_SIZE], uint
  * initial public draft][fips203ipd] requires an **approved** random bit
  * generator (RBG) with at least 128 bits of strength.
  *
+ * @note Encapsulation key polynomial coefficients are reduced modulo Q
+ * during deserialization, as per [option #2 in this `pqc-forum`
+ * discussion][poly-decode].
+ *
  * @param[out] key Shared key (32 bytes).
  * @param[out] ct Ciphertext (768 bytes).
  * @param[in] ek KEM512 encapsulation key (800 bytes).
@@ -86,6 +90,7 @@ void fips203ipd_kem512_keygen(uint8_t ek[static FIPS203IPD_KEM512_EK_SIZE], uint
  *   "Cryptographically Secure Pseudorandom Number Generator (CSPRNG)"
  * [fips203ipd]: https://csrc.nist.gov/pubs/fips/203/ipd
  *   "FIPS 203 (Initial Public Draft): Module-Lattice-Based Key-Encapsulation Mechanism Standard"
+ * [poly-decode]: https://groups.google.com/a/list.nist.gov/d/msgid/pqc-forum/ZRQvPT7kQ51NIRyJ%40disp3269
  */
 void fips203ipd_kem512_encaps(uint8_t key[static 32], uint8_t ct[static FIPS203IPD_KEM512_CT_SIZE], const uint8_t ek[static FIPS203IPD_KEM512_EK_SIZE], const uint8_t seed[static 32]);
 
@@ -162,6 +167,10 @@ void fips203ipd_kem768_keygen(uint8_t ek[static FIPS203IPD_KEM768_EK_SIZE], uint
  * initial public draft][fips203ipd] requires an **approved** random bit
  * generator (RBG) with at least 192 bits of strength.
  *
+ * @note Encapsulation key polynomial coefficients are reduced modulo Q
+ * during deserialization, as per [option #2 in this `pqc-forum`
+ * discussion][poly-decode].
+ *
  * @param[out] key Shared key (32 bytes).
  * @param[out] ct Ciphertext (1088 bytes).
  * @param[in] ek KEM768 encapsulation key (1184 bytes).
@@ -174,6 +183,7 @@ void fips203ipd_kem768_keygen(uint8_t ek[static FIPS203IPD_KEM768_EK_SIZE], uint
  *   "Cryptographically Secure Pseudorandom Number Generator (CSPRNG)"
  * [fips203ipd]: https://csrc.nist.gov/pubs/fips/203/ipd
  *   "FIPS 203 (Initial Public Draft): Module-Lattice-Based Key-Encapsulation Mechanism Standard"
+ * [poly-decode]: https://groups.google.com/a/list.nist.gov/d/msgid/pqc-forum/ZRQvPT7kQ51NIRyJ%40disp3269
  */
 void fips203ipd_kem768_encaps(uint8_t key[static 32], uint8_t ct[static FIPS203IPD_KEM768_CT_SIZE], const uint8_t ek[static FIPS203IPD_KEM768_EK_SIZE], const uint8_t seed[static 32]);
 
@@ -250,6 +260,10 @@ void fips203ipd_kem1024_keygen(uint8_t ek[static FIPS203IPD_KEM1024_EK_SIZE], ui
  * initial public draft][fips203ipd] requires an **approved** random bit
  * generator (RBG) with at least 256 bits of strength.
  *
+ * @note Encapsulation key polynomial coefficients are reduced modulo Q
+ * during deserialization, as per [option #2 in this `pqc-forum`
+ * discussion][poly-decode].
+ *
  * @param[out] key Shared key (32 bytes).
  * @param[out] ct Ciphertext (1568 bytes).
  * @param[in] ek KEM1024 encapsulation key (1568 bytes).
@@ -262,6 +276,7 @@ void fips203ipd_kem1024_keygen(uint8_t ek[static FIPS203IPD_KEM1024_EK_SIZE], ui
  *   "Cryptographically Secure Pseudorandom Number Generator (CSPRNG)"
  * [fips203ipd]: https://csrc.nist.gov/pubs/fips/203/ipd
  *   "FIPS 203 (Initial Public Draft): Module-Lattice-Based Key-Encapsulation Mechanism Standard"
+ * [poly-decode]: https://groups.google.com/a/list.nist.gov/d/msgid/pqc-forum/ZRQvPT7kQ51NIRyJ%40disp3269
  */
 void fips203ipd_kem1024_encaps(uint8_t key[static 32], uint8_t ct[static FIPS203IPD_KEM1024_CT_SIZE], const uint8_t ek[static FIPS203IPD_KEM1024_EK_SIZE], const uint8_t seed[static 32]);
 

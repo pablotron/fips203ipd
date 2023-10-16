@@ -99,12 +99,23 @@ void fips203ipd_kem512_encaps(uint8_t key[static 32], uint8_t ct[static FIPS203I
  * decapsulation key `dk` with implicit rejection.
  * @ingroup kem512
  *
+ * @note Implicit rejection means that when this function is given an
+ * invalid ciphertext, it will return a key which is unpredictable to
+ * the attacker rather than an error.  This is intended to provide
+ * [IND-CCA2][] security, as discussed in section 3.2 of the [FIPS 203
+ * initial public draft][fips203ipd].
+ *
  * @param[out] key Shared key (32 bytes).
  * @param[out] ct Ciphertext (768 bytes).
  * @param[in] dk KEM512 decapsulation key (1632 bytes).
  *
  * Example:
  * @snippet{trimleft} 1-all-three/all-three.c kem512-decaps
+ *
+ * [IND-CCA2]: https://en.wikipedia.org/wiki/Ciphertext_indistinguishability#IND-CCA2
+ *   "indistinguishable under adaptive chosen ciphertext attack (IND-CCA2)"
+ * [fips203ipd]: https://csrc.nist.gov/pubs/fips/203/ipd
+ *   "FIPS 203 (Initial Public Draft): Module-Lattice-Based Key-Encapsulation Mechanism Standard"
  */
 void fips203ipd_kem512_decaps(uint8_t key[static 32], const uint8_t ct[static FIPS203IPD_KEM512_CT_SIZE], const uint8_t dk[static FIPS203IPD_KEM512_DK_SIZE]);
 
@@ -192,12 +203,23 @@ void fips203ipd_kem768_encaps(uint8_t key[static 32], uint8_t ct[static FIPS203I
  * decapsulation key `dk` with implicit rejection.
  * @ingroup kem768
  *
+ * @note Implicit rejection means that when this function is given an
+ * invalid ciphertext, it will return a key which is unpredictable to
+ * the attacker rather than an error.  This is intended to provide
+ * [IND-CCA2][] security, as discussed in section 3.2 of the [FIPS 203
+ * initial public draft][fips203ipd].
+ *
  * @param[out] key Shared key (32 bytes).
  * @param[out] ct Ciphertext (1088 bytes).
  * @param[in] dk KEM768 decapsulation key (2400 bytes).
  *
  * Example:
  * @snippet{trimleft} 1-all-three/all-three.c kem768-decaps
+ *
+ * [IND-CCA2]: https://en.wikipedia.org/wiki/Ciphertext_indistinguishability#IND-CCA2
+ *   "indistinguishable under adaptive chosen ciphertext attack (IND-CCA2)"
+ * [fips203ipd]: https://csrc.nist.gov/pubs/fips/203/ipd
+ *   "FIPS 203 (Initial Public Draft): Module-Lattice-Based Key-Encapsulation Mechanism Standard"
  */
 void fips203ipd_kem768_decaps(uint8_t key[static 32], const uint8_t ct[static FIPS203IPD_KEM768_CT_SIZE], const uint8_t dk[static FIPS203IPD_KEM768_DK_SIZE]);
 
@@ -285,12 +307,23 @@ void fips203ipd_kem1024_encaps(uint8_t key[static 32], uint8_t ct[static FIPS203
  * decapsulation key `dk` with implicit rejection.
  * @ingroup kem1024
  *
+ * @note Implicit rejection means that when this function is given an
+ * invalid ciphertext, it will return a key which is unpredictable to
+ * the attacker rather than an error.  This is intended to provide
+ * [IND-CCA2][] security, as discussed in section 3.2 of the [FIPS 203
+ * initial public draft][fips203ipd].
+ *
  * @param[out] key Shared key (32 bytes).
  * @param[out] ct Ciphertext (1568 bytes).
  * @param[in] dk KEM1024 decapsulation key (3168 bytes).
  *
  * Example:
  * @snippet{trimleft} 1-all-three/all-three.c kem1024-decaps
+ *
+ * [IND-CCA2]: https://en.wikipedia.org/wiki/Ciphertext_indistinguishability#IND-CCA2
+ *   "indistinguishable under adaptive chosen ciphertext attack (IND-CCA2)"
+ * [fips203ipd]: https://csrc.nist.gov/pubs/fips/203/ipd
+ *   "FIPS 203 (Initial Public Draft): Module-Lattice-Based Key-Encapsulation Mechanism Standard"
  */
 void fips203ipd_kem1024_decaps(uint8_t key[static 32], const uint8_t ct[static FIPS203IPD_KEM1024_CT_SIZE], const uint8_t dk[static FIPS203IPD_KEM1024_DK_SIZE]);
 

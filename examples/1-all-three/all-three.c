@@ -14,8 +14,8 @@
 #include "fips203ipd.h" // fips203ipd_*()
 
 // print decapsulated key
-static void print_decapsulated_key(const char *name, const uint8_t key[static 32]) {
-  printf("alice: used %s decapsulation key `dk` to decapsulate secret from %s ciphertext `ct` into `a_key`:\nalice: a_key (32 bytes) = ", name, name);
+static void print_decapsulated_key(const char *algo_name, const char *ct_name, const char *key_name, const uint8_t key[static 32]) {
+  printf("alice: used %s decapsulation key `dk` to decapsulate secret from %s ciphertext `%s` into `%s`:\nalice: %s (32 bytes) = ", algo_name, algo_name, ct_name, key_name, key_name);
   hex_write(stdout, key, 32);
   fputs("\n\n", stdout);
 }
@@ -88,7 +88,7 @@ static void kem512_example(void) {
   uint8_t a_key[32] = { 0 }; // decapsulated key
   fips203ipd_kem512_decaps(a_key, ct, dk);
   //! [kem512-decaps]
-  print_decapsulated_key(name, a_key);
+  print_decapsulated_key(name, "ct", "a_key", a_key);
 
   // compare keys (not constant-time)
   compare_keys(name, a_key, b_key);
@@ -152,7 +152,7 @@ static void kem768_example(void) {
   uint8_t a_key[32] = { 0 }; // decapsulated key
   fips203ipd_kem768_decaps(a_key, ct, dk);
   //! [kem768-decaps]
-  print_decapsulated_key(name, a_key);
+  print_decapsulated_key(name, "ct", "a_key", a_key);
 
   // compare keys (not constant-time)
   compare_keys(name, a_key, b_key);
@@ -216,7 +216,7 @@ static void kem1024_example(void) {
   uint8_t a_key[32] = { 0 }; // decapsulated key
   fips203ipd_kem1024_decaps(a_key, ct, dk);
   //! [kem1024-decaps]
-  print_decapsulated_key(name, a_key);
+  print_decapsulated_key(name, "ct", "a_key", a_key);
 
   // compare keys (not constant-time)
   compare_keys(name, a_key, b_key);

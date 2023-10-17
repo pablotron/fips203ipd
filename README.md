@@ -222,3 +222,4 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 [mit-0]: https://opensource.org/license/mit-0/
   "MIT No Attribution license"
 [api-docs]: https://pmdn.org/api-docs/fips203ipd/
+  "fips203ipd API documentation."

@@ -132,9 +132,9 @@ See `examples/0-hello-kem/` for the full buildable example, including a
 
 ## Documentation
 
-[API][] documentation is available in `fips203ipd.h`.  If you have
-[Doxygen][] installed, you can build [HTML][]-formatted [API][]
-documentation by typing `make doc`.
+[API][] documentation is available online [here][api-docs] and also in
+`fips203ipd.h`.  If you have [Doxygen][] installed, you can build
+[HTML][]-formatted [API][] documentation by typing `make doc`.
 
 ## Tests
 
@@ -221,3 +221,4 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
   "HyperText Markup Language (HTML)"
 [mit-0]: https://opensource.org/license/mit-0/
   "MIT No Attribution license"
+[api-docs]: https://pmdn.org/api-docs/fips203ipd/

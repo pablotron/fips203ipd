@@ -170,6 +170,27 @@ library anyway:
 * [FIPS 202: SHA-3 Standard: Permutation-Based Hash and Extendable-Output Functions][fips202]
 * [FIPS 203 (IPD): Module-Lattice-Based Key-Encapsulation Mechanism Standard][fips203ipd]
 
+## License
+
+[MIT No Attribution (MIT-0)][MIT-0]
+
+Copyright 2023 Paul Duncan
+
+Permission is hereby granted, free of charge, to any person obtaining a
+copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 [c11]: https://en.wikipedia.org/wiki/C11_(C_standard_revision)
   "ISO/IEC 9899:2011"
 [SHA-3]: https://en.wikipedia.org/wiki/SHA-3
@@ -198,3 +219,5 @@ library anyway:
   "Application Programming Interface (API)"
 [html]: https://en.wikipedia.org/wiki/HTML
   "HyperText Markup Language (HTML)"
+[mit-0]: https://opensource.org/license/mit-0/
+  "MIT No Attribution license"

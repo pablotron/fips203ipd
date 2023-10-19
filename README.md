@@ -1,7 +1,7 @@
 # fips203ipd
 
-[C11][] implementation of the KEM512, KEM768, and KEM1024 parameter sets
-from the [FIPS 203 initial public draft (IPD)][fips203ipd].
+Embeddable, dependency-free [C11][] implementation of ML-KEM from the
+[FIPS 203 initial public draft (IPD)][fips203ipd].
 
 [FIPS 203][fips203ipd] is (or will be) [NIST's][nist] standardized
 version of [Kyber][], a post-quantum [key encapsulation mechanism
@@ -12,12 +12,11 @@ Notes on this implementation:
 - Coefficients are reduced modulo Q during polynomial deserialization, as per
   [this discussion][pqc-forum-decode-comment].
 - This implementation is focused on correctness and is not optimized.
-  In particular, there is no SIMD optimization and the rounding math
-  uses (constant-time) lookup tables, which makes this implementation
-  slow and memory-intensive.
+  In particular, there is no SIMD optimization.
 - Randomness for `keygen()` and `encaps()` is specified as a function
   parameter.
 - Uses [my SHA-3 implementation][sha3-mine].
+- Full [Doxygen][] [API][] documentation.
 - Test suite is built-in to `fips203ipd.c` (see bottom of file).
 
 Use `make` to build a minimal self test application, `make doc` to build
@@ -141,13 +140,13 @@ See `examples/0-hello-kem/` for the full buildable example, including a
 Use `make test` to build and run the test suite.
 
 The test suite checks each component of this implementation for expected
-answers and is built with several sanitizers supported by both [GCC][]
+answers and is built with common sanitizers supported by both [GCC][]
 and [Clang][].  The source code for the test suite is embedded at the
 bottom of `fips203ipd.c` behind a `TEST_FIPS203IPD` define.
 
-You can also build a quick self test application by typing `make` in the
-top-level directory.  The self test application does the following 1000
-times for each parameter set:
+You can also build a quick test application by typing `make` in the
+top-level directory.  The test application does the following 1000 times
+for each parameter set:
 
 1. Generate a random encapsulation/decapsulation key pair.
 2. Encapsulate a secret using the encapsulation key.

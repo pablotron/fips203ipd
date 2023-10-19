@@ -403,12 +403,12 @@ static inline void ct_copy(uint8_t c[static 32], const bool sel, const uint8_t a
 }
 
 /**
- * Reduce value modulo Q (Barret reduction).
+ * Constant-time mod Q (Barret reduction).
  *
- * @param[in] v 24-bit input value.
+ * @param[in] v Input value (<36-bit).
  * @return Value reduced modulo Q.
  */
-static inline uint16_t reduce(const uint64_t v) {
+static inline uint16_t ct_mod_q(const uint64_t v) {
   // exponent (note: 24 bits are sufficient everywhere except
   // poly_mul(), which requires 36 bits)
   static const uint8_t E = 36;
@@ -489,7 +489,7 @@ static inline void poly_sample_ntt(poly_t * const a, const uint8_t rho[static 32
         y += (buf[ofs / 8] >> (ofs % 8)) & 0x01; \
       } \
       \
-      p->cs[i] = reduce(x + (Q - y)); /* (x - y) % Q */ \
+      p->cs[i] = ct_mod_q(x + (Q - y)); /* (x - y) % Q */ \
     } \
   }
 
@@ -502,7 +502,7 @@ DEF_POLY_SAMPLE_CBD(2)
 /**
  * Compute in-place number-theoretic transform (NTT) of polynomial `p`.
  *
- * @param[in/out] p Polynomial.
+ * @param[in,out] p Polynomial.
  */
 static inline void poly_ntt(poly_t * const p) {
   uint8_t k = 1;
@@ -511,9 +511,9 @@ static inline void poly_ntt(poly_t * const p) {
       const uint16_t zeta = NTT_LUT[k++];
 
       for (uint16_t j = start; j < start + len; j++) {
-        const uint16_t t = reduce(zeta * p->cs[j + len]);
-        p->cs[j + len] = reduce(p->cs[j] + (Q - t)); // (p[j] - t) % Q
-        p->cs[j] = reduce(p->cs[j] + t);
+        const uint16_t t = ct_mod_q(zeta * p->cs[j + len]);
+        p->cs[j + len] = ct_mod_q(p->cs[j] + (Q - t)); // (p[j] - t) % Q
+        p->cs[j] = ct_mod_q(p->cs[j] + t);
       }
     }
   }
@@ -523,7 +523,7 @@ static inline void poly_ntt(poly_t * const p) {
  * Compute in-place inverse number-theoretic transform (NTT) of
  * polynomial `p`.
  *
- * @param[in/out] p Polynomial.
+ * @param[in,out] p Polynomial.
  */
 static inline void poly_inv_ntt(poly_t * const p) {
   uint8_t k = 127;
@@ -533,14 +533,14 @@ static inline void poly_inv_ntt(poly_t * const p) {
 
       for (uint16_t j = start; j < start + len; j++) {
         const uint16_t t = p->cs[j];
-        p->cs[j] = reduce(t + p->cs[j + len]); // (t + p[j + len]) % Q
-        p->cs[j + len] = reduce(zeta * ((p->cs[j + len] + (Q - t))));
+        p->cs[j] = ct_mod_q(t + p->cs[j + len]); // (t + p[j + len]) % Q
+        p->cs[j + len] = ct_mod_q(zeta * ((p->cs[j + len] + (Q - t))));
       }
     }
   }
 
   for (size_t i = 0; i < 256; i++) {
-    p->cs[i] = reduce((uint32_t) p->cs[i] * 3303);
+    p->cs[i] = ct_mod_q((uint32_t) p->cs[i] * 3303);
   }
 }
 
@@ -548,12 +548,12 @@ static inline void poly_inv_ntt(poly_t * const p) {
  * Add polynomial `a` to polynomial `b` component-wise, and store the
  * sum in `a`.
  *
- * @param[in/out] a Polynomial.
+ * @param[in,out] a Polynomial.
  * @param[in] b Polynomial.
  */
 static inline void poly_add(poly_t * const restrict a, const poly_t * const restrict b) {
   for (size_t i = 0; i < 256; i++) {
-    a->cs[i] = reduce((uint32_t) a->cs[i] + (uint32_t) b->cs[i]);
+    a->cs[i] = ct_mod_q((uint32_t) a->cs[i] + (uint32_t) b->cs[i]);
   }
 }
 
@@ -561,12 +561,12 @@ static inline void poly_add(poly_t * const restrict a, const poly_t * const rest
  * Subtract polynomial `b` from polynomial `a` component-wise, and store the
  * result in `a`.
  *
- * @param[in/out] a Polynomial.
+ * @param[in,out] a Polynomial.
  * @param[in] b Polynomial.
  */
 static inline void poly_sub(poly_t * const restrict a, const poly_t * const restrict b) {
   for (size_t i = 0; i < 256; i++) {
-    a->cs[i] = reduce((uint32_t) a->cs[i] + (uint32_t) (Q - b->cs[i]));
+    a->cs[i] = ct_mod_q((uint32_t) a->cs[i] + (uint32_t) (Q - b->cs[i]));
   }
 }
 
@@ -587,8 +587,8 @@ static inline void poly_mul(poly_t * const restrict c, const poly_t * const rest
                    a1 = a->cs[2 * i + 1],
                    b0 = b->cs[2 * i],
                    b1 = b->cs[2 * i + 1];
-    c->cs[2 * i] = reduce(a0 * b0 + a1 * b1 * MUL_LUT[i]);
-    c->cs[2 * i + 1] = reduce(a0 * b1 + a1 * b0);
+    c->cs[2 * i] = ct_mod_q(a0 * b0 + a1 * b1 * MUL_LUT[i]);
+    c->cs[2 * i + 1] = ct_mod_q(a0 * b1 + a1 * b0);
   }
 }
 
@@ -744,19 +744,25 @@ static inline void poly_encode_1bit(uint8_t out[static 32], const poly_t * const
  * https://groups.google.com/a/list.nist.gov/d/msgid/pqc-forum/ZRQvPT7kQ51NIRyJ%40disp3269
  *
  * @param[out] p Output polynomial.
- * @param[in] Input buffer of length 384 bytes.
+ * @param[in] b Input buffer (384 bytes).
  */
 static inline void poly_decode(poly_t * const p, const uint8_t b[static 384]) {
   for (size_t i = 0; i < 128; i++) {
     const uint8_t b0 = b[3 * i],
                   b1 = b[3 * i + 1],
                   b2 = b[3 * i + 2];
-    p->cs[2 * i] = reduce(((uint16_t) b0) | ((((uint16_t) b1) & 0xf) << 8));
-    p->cs[2 * i + 1] = reduce((((uint16_t) b1 & 0xf0) >> 4) | (((uint16_t) b2) << 4));
+    p->cs[2 * i] = ct_mod_q(((uint16_t) b0) | ((((uint16_t) b1) & 0xf) << 8));
+    p->cs[2 * i + 1] = ct_mod_q((((uint16_t) b1 & 0xf0) >> 4) | (((uint16_t) b2) << 4));
   }
 }
 
-// Decode 11-bit coefficients from 352 bytes.
+/**
+ * Decode packed 11-bit coefficients from input buffer `b` into output
+ * polynomial `p`.
+ *
+ * @param[out] p Output polynomial.
+ * @param[in] b Input buffer (352 bytes).
+ */
 static inline void poly_decode_11bit(poly_t * const p, const uint8_t b[static 352]) {
   for (size_t i = 0; i < 32; i++) {
     const uint16_t b0 = b[11 * i + 0],
@@ -801,8 +807,13 @@ static inline void poly_decode_11bit(poly_t * const p, const uint8_t b[static 35
   }
 }
 
-// Decode 10-bit coefficients from 320 bytes and then decompress them
-// (e.g., multiply by 3).
+/**
+ * Decode packed 10-bit coefficients from input buffer `b` into output
+ * polynomial `p`.
+ *
+ * @param[out] p Output polynomial.
+ * @param[in] b Input buffer (320 bytes).
+ */
 static inline void poly_decode_10bit(poly_t * const p, const uint8_t b[static 320]) {
   for (size_t i = 0; i < 64; i++) {
     const uint8_t b0 = b[5 * i + 0],
@@ -833,7 +844,13 @@ static inline void poly_decode_10bit(poly_t * const p, const uint8_t b[static 32
   }
 }
 
-// Decode 5-bit coefficients from 160 bytes and then decompress them.
+/**
+ * Decode packed 5-bit coefficients from input buffer `b` into output
+ * polynomial `p`.
+ *
+ * @param[out] p Output polynomial.
+ * @param[in] b Input buffer (160 bytes).
+ */
 static inline void poly_decode_5bit(poly_t * const p, const uint8_t b[static 160]) {
   for (size_t i = 0; i < 32; i++) {
     const uint16_t b0 = b[5 * i + 0],
@@ -868,8 +885,13 @@ static inline void poly_decode_5bit(poly_t * const p, const uint8_t b[static 160
   }
 }
 
-// Decode 4-bit coefficients from 128 bytes and then decompress them
-// (e.g., multiply by 208).
+/**
+ * Decode packed 4-bit coefficients from input buffer `b` into output
+ * polynomial `p`.
+ *
+ * @param[out] p Output polynomial.
+ * @param[in] b Input buffer (128 bytes).
+ */
 static inline void poly_decode_4bit(poly_t * const p, const uint8_t b[static 128]) {
   for (size_t i = 0; i < 128; i++) {
     const uint8_t x[2] = { b[i] & 0x0f, (b[i] & 0xf0) >> 4 };
@@ -887,8 +909,13 @@ static inline void poly_decode_4bit(poly_t * const p, const uint8_t b[static 128
   }
 }
 
-// Decode 1-bit coefficients from 32 bytes and then decompress them
-// (e.g., multiply by 1665).
+/**
+ * Decode packed 1-bit coefficients from input buffer `b` into output
+ * polynomial `p`.
+ *
+ * @param[out] p Output polynomial.
+ * @param[in] b Input buffer (32 bytes).
+ */
 static inline void poly_decode_1bit(poly_t * const p, const uint8_t b[static 32]) {
   for (size_t i = 0; i < 32; i++) {
     p->cs[8 * i + 0] = ((b[i] & 0x01) ? 0xfff : 0) & 1665;

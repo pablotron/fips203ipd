@@ -6685,6 +6685,22 @@ static inline void ct_copy(uint8_t c[static 32], const bool sel, const uint8_t a
   }
 }
 
+/**
+ * Reduce value modulo Q (Barret reduction).
+ *
+ * @param[in] v 24-bit input value.
+ * @return Value reduced modulo Q.
+ */
+static inline uint16_t reduce(const uint64_t v) {
+  // exponent (note: 24 bits are sufficient everywhere except
+  // poly_mul(), which requires 36 bits)
+  static const uint8_t E = 36;
+  static const uint64_t M = (1ULL << E) / Q; // multiplier
+  const uint16_t r = v - ((v * M) >> E) * Q; // barret reduction
+  const uint16_t mask = (r < Q) ? 0 : 0xFFFF; // adjustment mask
+  return r - (Q & mask); // constant-time adjustment
+}
+
 // Polynomial with 256 12-bit coefficients.
 typedef struct {
   uint16_t cs[256]; // coefficients
@@ -6756,7 +6772,7 @@ static inline void poly_sample_ntt(poly_t * const a, const uint8_t rho[static 32
         y += (buf[ofs / 8] >> (ofs % 8)) & 0x01; \
       } \
       \
-      p->cs[i] = (x + (Q - y)) % Q; /* (x - y) % Q */ \
+      p->cs[i] = reduce(x + (Q - y)); /* (x - y) % Q */ \
     } \
   }
 
@@ -6778,9 +6794,9 @@ static inline void poly_ntt(poly_t * const p) {
       const uint16_t zeta = NTT_LUT[k++];
 
       for (uint16_t j = start; j < start + len; j++) {
-        const uint16_t t = (zeta * p->cs[j + len]) % Q;
-        p->cs[j + len] = (p->cs[j] + (Q - t)) % Q; // (p[j] - t) % Q
-        p->cs[j] = (p->cs[j] + t) % Q;
+        const uint16_t t = reduce(zeta * p->cs[j + len]);
+        p->cs[j + len] = reduce(p->cs[j] + (Q - t)); // (p[j] - t) % Q
+        p->cs[j] = reduce(p->cs[j] + t);
       }
     }
   }
@@ -6800,14 +6816,14 @@ static inline void poly_inv_ntt(poly_t * const p) {
 
       for (uint16_t j = start; j < start + len; j++) {
         const uint16_t t = p->cs[j];
-        p->cs[j] = (t + p->cs[j + len]) % Q; // (t + p[j + len]) % Q
-        p->cs[j + len] = (zeta * ((p->cs[j + len] + (Q - t)))) % Q;
+        p->cs[j] = reduce(t + p->cs[j + len]); // (t + p[j + len]) % Q
+        p->cs[j + len] = reduce(zeta * ((p->cs[j + len] + (Q - t))));
       }
     }
   }
 
   for (size_t i = 0; i < 256; i++) {
-    p->cs[i] = ((uint32_t) p->cs[i] * 3303) % Q;
+    p->cs[i] = reduce((uint32_t) p->cs[i] * 3303);
   }
 }
 
@@ -6820,7 +6836,7 @@ static inline void poly_inv_ntt(poly_t * const p) {
  */
 static inline void poly_add(poly_t * const restrict a, const poly_t * const restrict b) {
   for (size_t i = 0; i < 256; i++) {
-    a->cs[i] = ((uint32_t) a->cs[i] + (uint32_t) b->cs[i]) % Q;
+    a->cs[i] = reduce((uint32_t) a->cs[i] + (uint32_t) b->cs[i]);
   }
 }
 
@@ -6833,7 +6849,7 @@ static inline void poly_add(poly_t * const restrict a, const poly_t * const rest
  */
 static inline void poly_sub(poly_t * const restrict a, const poly_t * const restrict b) {
   for (size_t i = 0; i < 256; i++) {
-    a->cs[i] = ((uint32_t) a->cs[i] + (uint32_t) (Q - b->cs[i])) % Q;
+    a->cs[i] = reduce((uint32_t) a->cs[i] + (uint32_t) (Q - b->cs[i]));
   }
 }
 
@@ -6854,8 +6870,8 @@ static inline void poly_mul(poly_t * const restrict c, const poly_t * const rest
                    a1 = a->cs[2 * i + 1],
                    b0 = b->cs[2 * i],
                    b1 = b->cs[2 * i + 1];
-    c->cs[2 * i] = (a0 * b0 + a1 * b1 * MUL_LUT[i]) % Q;
-    c->cs[2 * i + 1] = (a0 * b1 + a1 * b0) % Q;
+    c->cs[2 * i] = reduce(a0 * b0 + a1 * b1 * MUL_LUT[i]);
+    c->cs[2 * i + 1] = reduce(a0 * b1 + a1 * b0);
   }
 }
 
@@ -7034,8 +7050,8 @@ static inline void poly_decode(poly_t * const p, const uint8_t b[static 384]) {
     const uint8_t b0 = b[3 * i],
                   b1 = b[3 * i + 1],
                   b2 = b[3 * i + 2];
-    p->cs[2 * i] = (((uint16_t) b0) | ((((uint16_t) b1) & 0xf) << 8)) % Q;
-    p->cs[2 * i + 1] = ((((uint16_t) b1 & 0xf0) >> 4) | (((uint16_t) b2) << 4)) % Q;
+    p->cs[2 * i] = reduce(((uint16_t) b0) | ((((uint16_t) b1) & 0xf) << 8));
+    p->cs[2 * i + 1] = reduce((((uint16_t) b1 & 0xf0) >> 4) | (((uint16_t) b2) << 4));
   }
 }
 

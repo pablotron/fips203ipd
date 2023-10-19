@@ -5,19 +5,19 @@
  * Copyright (c) 2023 Paul Duncan
  * SPDX-License-Identifier: MIT-0
  *
- * C11 implementations of the following SHA-3 algorithms:
+ * Embeddable, dependency-free, MIT-0-licensed C11 implementation of the
+ * following SHA-3 hash functions, XOFs, and HMACs:
  *
- * - SHA3-224, SHA3-256, SHA3-384, SHA3-512
- * - HMAC-SHA3-224, HMAC-SHA3-256, HMAC-SHA3-384, HMAC-SHA3-512
- * - SHAKE128, SHAKE128-XOF, SHAKE256, SHAKE256-XOF
- * - cSHAKE128, cSHAKE128-XOF, cSHAKE256, cSHAKE256-XOF
- * - KMAC128, KMAC128-XOF, KMAC256, KMAC256-XOF
- * - TupleHash128, TupleHash128-XOF, TupleHash256, TupleHash256-XOF
- * - ParallelHash128, ParallelHash128-XOF, ParallelHash256, ParallelHash256-XOF
- * - TurboSHAKE128, TurboSHAKE256
+ * - SHA3-224, SHA3-256, SHA3-384, and SHA3-512
+ * - HMAC-SHA3-224, HMAC-SHA3-256, HMAC-SHA3-384, and HMAC-SHA3-512
+ * - SHAKE128, SHAKE128-XOF, SHAKE256, and SHAKE256-XOF
+ * - cSHAKE128, cSHAKE128-XOF, cSHAKE256, and cSHAKE256-XOF
+ * - KMAC128, KMAC128-XOF, KMAC256, and KMAC256-XOF
+ * - TupleHash128, TupleHash128-XOF, TupleHash256, and TupleHash256-XOF
+ * - ParallelHash128, ParallelHash128-XOF, ParallelHash256, and ParallelHash256-XOF
+ * - TurboSHAKE128 and TurboSHAKE256
  * - KangarooTwelve
  */
-
 #include <stdbool.h> // true, false
 #include <stdint.h> // uint64_t
 #include <string.h> // memcpy()
